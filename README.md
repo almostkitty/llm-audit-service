@@ -81,13 +81,14 @@ curl -X POST "http://127.0.0.1:8000/audit" \
 ```json
 {
   "metrics": {
-    "lexical_diversity": 0.7665198237885462,
-    "burstiness": 3.5247411522243968,
-    "average_sentence_length": 5.675,
-    "text_entropy": 7.25812197417637,
-    "stop_word_ratio": 0.1963470319634703,
-    "word_length_variation": 3.5739396701033814,
-    "punctuation_ratio": 0.03647586980920314
+    "lexical_diversity": 0.5169109357384442,
+    "burstiness": 4.168206436059661,
+    "average_sentence_length": 13.859375,
+    "text_entropy": 9.060240121550303,
+    "stop_word_ratio": 0.16573348264277715,
+    "word_length_variation": 3.7789375941173824,
+    "punctuation_ratio": 0.01972127267946358,
+    "repetition_score": 0.10449623795706625
   },
   "llm_probability": 1
 }
@@ -110,7 +111,7 @@ curl -X POST "http://127.0.0.1:8000/audit" \
 
 - Подключить **`/audit`** к загрузке PDF/DOCX
 - Нормализация метрик и осмысленные веса / логистическая регрессия по датасету
-- Метрики `perplexity`, `repetition_score`
+- Метрика `perplexity` (пока не подключена)
 - Отчёты, хранение результатов, авторизация
 
 ## Метрики в проекте
@@ -122,7 +123,7 @@ curl -X POST "http://127.0.0.1:8000/audit" \
 
 ### LLM-ориентированные метрики
 - [ ] Перплексия (perplexity). Файл perplexity.py;
-- [ ] Коэффициент повторений (repetition score). Файл repetition_score.py;
+- [x] Коэффициент повторений (repetition score). Файл repetition_score.py;
 
 ### Стилометрия
 - [x] Доля стоп-слов (stop-word ratio). Файл stop_word.py;
