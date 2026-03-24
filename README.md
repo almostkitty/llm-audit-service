@@ -1,120 +1,124 @@
 # llm-audit-service
+
 Diploma project
 
 Сервис для оценки вероятности того, что текст был написан с использованием LLM.
 
 ## Статус проекта
 
-Это MVP дипломного проекта. Сейчас реализован базовый пайплайн анализа текста и один рабочий endpoint: `POST /audit`.
+MVP дипломного проекта: анализ текста по эвристическим метрикам, простая страница для проверки API и отдельная страница для теста извлечения текста из документов.
 
 ## Что уже реализовано
 
-- FastAPI-приложение с точкой входа в `app/main.py`
-- Endpoint `POST /audit` для загрузки текста в файле
-- Препроцессинг текста (приведение к lower-case, нормализация пробелов)
-- Базовые статистические метрики:
-  - `lexical_diversity`
-  - `burstiness`
-  - `average sentence length`
-  - `text entropy`
-- Простая агрегация метрик в итоговую оценку `llm_probability` (диапазон `0..1`)
-- Страница demo.html для вывода результатов
+- FastAPI, точка входа `app/main.py`
+- **`POST /audit`** — загрузка **текстового** файла (UTF-8), возврат метрик и `llm_probability`
+- **`POST /extract`** — загрузка **PDF, DOCX или .txt**; ответ `{"text": "..."}` (плоский текст для проверки пайплайна извлечения)
+- **`GET /demo`** — статическая страница `templates/demo.html` (текст → запрос к `/audit`)
+- **`GET /extract`** — статическая страница `templates/extract.html` (файл → запрос к `/extract`)
+- Препроцессинг: lower-case, нормализация пробелов (`preprocessing/cleaner.py`)
+- Метрики (см. раздел внизу); все перечисленные ниже считаются и попадают в JSON ответа **`/audit`**
+- **`llm_probability`**: эвристика в `scoring/aggregator.py` (сейчас в скор входят только часть метрик — см. ниже)
+- Извлечение текста:
+  - **PDF** — [pymupdf4llm](https://pypi.org/project/pymupdf4llm/) (`to_text`, опционально `to_json` в `pdf_reader.py`)
+  - **DOCX** — `python-docx` (`docx_reader.py`, при необходимости JSON-обёртка `extract_docx_as_json`)
 
 ## Текущие ограничения MVP
 
-- Поддерживается только загрузка UTF-8 текста через `POST /audit`
-- Роуты `auth`, `files`, `reports` пока созданы как заготовки
-- Скоринг эвристический, без ML-модели и без калибровки на датасете
+- **`/audit`** принимает только содержимое как **UTF-8 текст** в поле `file` (не PDF/DOCX напрямую). Для PDF/DOCX сначала извлеки текст через **`/extract`** или локально через `ingestion/*`
+- Роуты `auth`, `files`, `reports` — заготовки
+- Скоринг без ML и без калибровки на датасете; веса в `aggregator.py` — baseline
+
+## Зависимости
+
+Основное задаётся в `requirements.txt`: `fastapi`, `uvicorn`, `numpy`, `python-docx`, `python-multipart`, `pymupdf4llm` (подтягивает PyMuPDF).
 
 ## Структура проекта
 
 ```text
 app/
-  main.py                         # точка входа FastAPI
+  main.py                         # FastAPI, GET /, /demo, /extract
   api/routes/
-    audit.py                      # рабочий endpoint /audit
-    auth.py                       # заготовка
-    files.py                      # заготовка
-    reports.py                    # заготовка
+    audit.py                      # POST /audit
+    extract.py                    # POST /extract
+    auth.py, files.py, reports.py # заготовки
+  templates/
+    demo.html                     # UI: анализ вставленного текста
+    extract.html                  # UI: извлечение из PDF/DOCX/TXT
   services/
-    analyzer.py                   # orchestration пайплайна анализа
-    preprocessing/cleaner.py      # очистка текста
-    metrics/
-      lexical_diversity.py        # метрика лексического разнообразия
-      burstiness.py               # метрика "burstiness"
-      text_entropy.py             # метрика энтропия текста
-      avg_lenght.py               # метрика средняя длина предложения
-    scoring/aggregator.py         # агрегация метрик в llm_probability
+    analyzer.py                   # сбор метрик + compute_score
+    preprocessing/cleaner.py
+    metrics/                      # отдельный файл на метрику
+    scoring/aggregator.py
     ingestion/
-      pdf_reader.py               # извлечение текста из PDF (пока не подключен к API)
-      docx_reader.py              # извлечение текста из DOCX (пока не подключен к API)
+      pdf_reader.py               # pymupdf4llm: to_text / extract_pdf_as_json
+      docx_reader.py              # plain text + extract_docx_as_json
 ```
 
 ## Быстрый старт
 
-1. Создай и активируй виртуальное окружение:
-
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-```
-
-2. Установи зависимости:
-
-```bash
 pip install -r requirements.txt
-```
-
-3. Запусти приложение:
-
-```bash
 uvicorn app.main:app --reload
 ```
 
-4. Проверь, что сервис поднялся:
+Проверка:
 
-- `GET /` -> `{"message": "LLM Audit Service is running"}`
-- Swagger UI: `http://127.0.0.1:8000/docs`
+- `GET /` — `{"message": "LLM Audit Service is running"}`
+- Swagger: `http://127.0.0.1:8000/docs`
+- UI анализа: `http://127.0.0.1:8000/demo`
+- UI извлечения: `http://127.0.0.1:8000/extract`
 
 ## API: POST /audit
 
-Принимает файл в `multipart/form-data` с полем `file`.
+`multipart/form-data`, поле `file` — **текст в UTF-8** (например `.txt`).
 
-### Пример запроса
+Пример:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/audit" \
   -H "accept: application/json" \
-  -H "Content-Type: multipart/form-data" \
   -F "file=@sample.txt"
 ```
 
-### Пример ответа
+Пример ответа (поле `metrics` может отличаться численно):
 
 ```json
 {
   "metrics": {
-    "lexical_diversity": 0.9655172413793104,
-    "burstiness": 3.6827198758132376,
-    "average_sentence_length": 14.5,
-    "text_entropy": 4.789015477886192
+    "lexical_diversity": 0.7665198237885462,
+    "burstiness": 3.5247411522243968,
+    "average_sentence_length": 5.675,
+    "text_entropy": 7.25812197417637,
+    "stop_word_ratio": 0.1963470319634703,
+    "word_length_variation": 3.5739396701033814,
+    "punctuation_ratio": 0.03647586980920314
   },
   "llm_probability": 1
 }
 ```
 
-## Как интерпретировать результат
+**Про `llm_probability`:** в `aggregator.py` сейчас усредняются с весами `0.25` только `lexical_diversity`, `burstiness`, `average_sentence_length`, `text_entropy`. Остальные метрики в ответе есть, но в скор пока не входят — их можно добавить после калибровки или обучения.
 
-- `llm_probability` ближе к `0` — ниже вероятность "LLM-паттерна"
-- `llm_probability` ближе к `1` — выше вероятность "LLM-паттерна"
-- Текущее значение — исследовательская эвристика, а не финальный детектор
+## API: POST /extract
+
+`multipart/form-data`, поле `file` — файл с расширением **`.pdf`**, **`.docx`** или текстовый **`.txt`** (или без расширения — обработка как UTF-8 текста).
+
+Ответ: `{"text": "извлечённый текст"}`.
+
+## Как интерпретировать результат анализа
+
+- `llm_probability` ближе к `0` — ниже эвристическая «оценка LLM-паттерна»
+- ближе к `1` — выше
+- это не судебно значимый детектор, а исследовательский baseline
 
 ## Ближайший roadmap
 
-- Подключить `pdf_reader` и `docx_reader` к API
-- Добавить нормальную валидацию входных файлов и обработку ошибок кодировок
-- Расширить набор метрик и ввести калибровку на валидационном наборе
-- Добавить отчеты, хранение результатов и авторизацию
+- Подключить **`/audit`** к загрузке PDF/DOCX (один шаг: извлечь + `analyze_text`) или единый endpoint
+- Нормализация метрик и осмысленные веса / логистическая регрессия по датасету
+- Метрики `perplexity`, `repetition_score`
+- Отчёты, хранение результатов, авторизация
 
 ## Метрики в проекте
 ### Базовые статистические метрики
@@ -128,6 +132,6 @@ curl -X POST "http://127.0.0.1:8000/audit" \
 - [ ] Коэффициент повторений (repetition score). Файл repetition_score.py;
 
 ### Стилометрия
-- [ ] Доля стоп-слов (stop-word ratio). Файл stop_word.py;
-- [ ] Разнообразие длины слов (word lenght variation). Файл lenght_variation.py;
-- [ ] Доля знаков препинания (punctuation ratio). Файл punctuation_ratio.py;
+- [x] Доля стоп-слов (stop-word ratio). Файл stop_word.py;
+- [x] Разнообразие длины слов (word lenght variation). Файл lenght_variation.py;
+- [x] Доля знаков препинания (punctuation ratio). Файл punctuation_ratio.py;

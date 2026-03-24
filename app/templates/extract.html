@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Extract test</title>
+</head>
+<body>
+  <h1>Извлечение текста</h1>
+
+  <input type="file" id="fileInput" accept=".pdf,.docx,.txt,text/plain" />
+  <button id="extractBtn" type="button">Извлечь</button>
+
+  <h2>Результат</h2>
+  <textarea id="output" rows="20" cols="80" readonly placeholder="Здесь появится текст"></textarea>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const extractBtn = document.getElementById("extractBtn");
+    const output = document.getElementById("output");
+
+    extractBtn.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        output.value = "Выберите файл.";
+        return;
+      }
+
+      output.value = "Извлекаем...";
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch("/extract", { method: "POST", body: formData });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          output.value = data.detail || "Ошибка: " + res.status;
+          return;
+        }
+
+        output.value = data.text ?? JSON.stringify(data, null, 2);
+      } catch (e) {
+        output.value = "Ошибка запроса.";
+      }
+    });
+  </script>
+</body>
+</html>

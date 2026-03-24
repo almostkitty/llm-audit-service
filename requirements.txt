@@ -1,6 +1,6 @@
 fastapi
 uvicorn
 numpy
-pypdf
 python-docx
 python-multipart
+pymupdf4llm
