@@ -10,20 +10,23 @@ MVP дипломного проекта: анализ текста по эври
 
 - FastAPI, точка входа `app/main.py`
 - **`POST /audit`** — загрузка **текстового** файла (UTF-8), возврат метрик и `llm_probability`
-- **`POST /extract`** — загрузка **PDF, DOCX или .txt**; ответ `{"text": "..."}` (плоский текст для проверки пайплайна извлечения)
+- **`POST /extract`** — загрузка **PDF, DOCX, RTF, ODT или .txt**; ответ `{"text": "..."}`
 - **`GET /demo`** — статическая страница `templates/demo.html` (текст → запрос к `/audit`)
 - **`GET /extract`** — статическая страница `templates/extract.html` (файл → запрос к `/extract`)
 - Препроцессинг: lower-case, нормализация пробелов (`preprocessing/cleaner.py`)
 - Метрики (см. раздел внизу); все перечисленные ниже считаются и попадают в JSON ответа **`/audit`**
 - **`llm_probability`**: эвристика в `scoring/aggregator.py` (сейчас в скор входят только часть метрик — см. ниже)
 - Извлечение текста:
-  - **PDF** — [pymupdf4llm](https://pypi.org/project/pymupdf4llm/) (`to_text`, опционально `to_json` в `pdf_reader.py`)
-  - **DOCX** — `python-docx` (`docx_reader.py`, при необходимости JSON-обёртка `extract_docx_as_json`)
+  - **PDF** — `pymupdf4llm` (`pdf_reader.py`)
+  - **DOCX** — `python-docx` (`docx_reader.py`)
+  - **RTF** — `striprtf` (`rtf_reader.py`)
+  - **ODT** — `odfpy` (`odt_reader.py`)
 
 ## Текущие ограничения MVP
 
-- **`/audit`** принимает только содержимое как **UTF-8 текст** в поле `file` (не PDF/DOCX напрямую). Для PDF/DOCX сначала извлеки текст через **`/extract`** или локально через `ingestion/*`
-- Роуты `auth`, `files`, `reports` — заготовки
+- **`/audit`** принимает только содержимое как **UTF-8 текст** в поле `file`;
+- Бинарный **`.doc`** (Word 97–2003) **не поддерживается**;
+- Роуты `auth`, `files`, `reports` — заготовки;
 - Скоринг без ML и без калибровки на датасете; веса в `aggregator.py` — baseline
 
 ## Структура проекта
@@ -37,15 +40,17 @@ app/
     auth.py, files.py, reports.py # заготовки
   templates/
     demo.html                     # UI: анализ вставленного текста
-    extract.html                  # UI: извлечение из PDF/DOCX/TXT
+    extract.html                  # UI: извлечение из документов
   services/
     analyzer.py                   # сбор метрик + compute_score
     preprocessing/cleaner.py
     metrics/                      # отдельный файл на метрику
     scoring/aggregator.py
     ingestion/
-      pdf_reader.py               # pymupdf4llm: to_text / extract_pdf_as_json
-      docx_reader.py              # plain text + extract_docx_as_json
+      pdf_reader.py               # pymupdf4llm
+      docx_reader.py              # DOCX
+      rtf_reader.py               # RTF
+      odt_reader.py               # ODT
 ```
 
 ## Быстрый старт
@@ -76,7 +81,7 @@ curl -X POST "http://127.0.0.1:8000/audit" \
   -F "file=@sample.txt"
 ```
 
-Пример ответа (поле `metrics` может отличаться численно):
+Пример ответа:
 
 ```json
 {
@@ -94,11 +99,19 @@ curl -X POST "http://127.0.0.1:8000/audit" \
 }
 ```
 
-**Про `llm_probability`:** в `aggregator.py` сейчас усредняются с весами `0.25` только `lexical_diversity`, `burstiness`, `average_sentence_length`, `text_entropy`. Остальные метрики в ответе есть, но в скор пока не входят — их можно добавить после калибровки или обучения.
+**Про `llm_probability`:** в `aggregator.py` сейчас усредняются с весами `0.25` только `lexical_diversity`, `burstiness`, `average_sentence_length`, `text_entropy`. Остальные метрики в ответе есть, но в скор пока не входят.
 
 ## API: POST /extract
 
-`multipart/form-data`, поле `file` — файл с расширением **`.pdf`**, **`.docx`** или текстовый **`.txt`** (или без расширения — обработка как UTF-8 текста).
+`multipart/form-data`, поле `file`:
+
+| Расширение | Обработка |
+|------------|-----------|
+| **`.pdf`** | pymupdf4llm |
+| **`.docx`** | python-docx |
+| **`.rtf`** | пакет `striprtf` |
+| **`.odt`** | пакет `odfpy` |
+| **`.txt`** / без расширения | UTF-8 (битые байты — с заменой) |
 
 Ответ: `{"text": "извлечённый текст"}`.
 
@@ -110,8 +123,8 @@ curl -X POST "http://127.0.0.1:8000/audit" \
 ## Ближайший roadmap
 
 - Подключить **`/audit`** к загрузке PDF/DOCX
-- Нормализация метрик и осмысленные веса / логистическая регрессия по датасету
-- Метрика `perplexity` (пока не подключена)
+- Нормализация метрик и логистическая регрессия по датасету
+- Метрика `perplexity`
 - Отчёты, хранение результатов, авторизация
 
 ## Метрики в проекте

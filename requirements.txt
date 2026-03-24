@@ -4,3 +4,5 @@ numpy
 python-docx
 python-multipart
 pymupdf4llm
+striprtf
+odfpy

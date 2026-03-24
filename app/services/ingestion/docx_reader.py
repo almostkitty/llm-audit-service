@@ -5,13 +5,11 @@ from docx import Document
 
 
 def extract_text_from_docx(file_path: str) -> str:
-    """Plain text from DOCX (paragraphs only) for the metrics pipeline."""
     doc = Document(file_path)
     return "\n".join(p.text for p in doc.paragraphs)
 
 
 def extract_docx_as_json(file_path: str) -> str:
-    """DOCX as JSON: paragraph texts (tables and headers are not included)."""
     doc = Document(file_path)
     texts = [p.text for p in doc.paragraphs]
     paragraphs: list[dict[str, Any]] = [
