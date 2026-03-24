@@ -1,6 +1,7 @@
 # llm-audit-service
+Diploma project
 
-Сервис для первичной (эвристической) оценки вероятности того, что текст был написан с использованием LLM.
+Сервис для оценки вероятности того, что текст был написан с использованием LLM.
 
 ## Статус проекта
 
@@ -11,10 +12,13 @@
 - FastAPI-приложение с точкой входа в `app/main.py`
 - Endpoint `POST /audit` для загрузки текста в файле
 - Препроцессинг текста (приведение к lower-case, нормализация пробелов)
-- Базовые метрики:
+- Базовые статистические метрики:
   - `lexical_diversity`
   - `burstiness`
+  - `average sentence length`
+  - `text entropy`
 - Простая агрегация метрик в итоговую оценку `llm_probability` (диапазон `0..1`)
+- Страница demo.html для вывода результатов
 
 ## Текущие ограничения MVP
 
@@ -38,6 +42,8 @@ app/
     metrics/
       lexical_diversity.py        # метрика лексического разнообразия
       burstiness.py               # метрика "burstiness"
+      text_entropy.py             # метрика энтропия текста
+      avg_lenght.py               # метрика средняя длина предложения
     scoring/aggregator.py         # агрегация метрик в llm_probability
     ingestion/
       pdf_reader.py               # извлечение текста из PDF (пока не подключен к API)
@@ -56,7 +62,7 @@ source .venv/bin/activate
 2. Установи зависимости:
 
 ```bash
-pip install fastapi uvicorn numpy pypdf python-docx python-multipart
+pip install -r requirements.txt
 ```
 
 3. Запусти приложение:
@@ -88,10 +94,12 @@ curl -X POST "http://127.0.0.1:8000/audit" \
 ```json
 {
   "metrics": {
-    "lexical_diversity": 0.73,
-    "burstiness": 1.94
+    "lexical_diversity": 0.9655172413793104,
+    "burstiness": 3.6827198758132376,
+    "average_sentence_length": 14.5,
+    "text_entropy": 4.789015477886192
   },
-  "llm_probability": 1.0
+  "llm_probability": 1
 }
 ```
 
@@ -107,3 +115,19 @@ curl -X POST "http://127.0.0.1:8000/audit" \
 - Добавить нормальную валидацию входных файлов и обработку ошибок кодировок
 - Расширить набор метрик и ввести калибровку на валидационном наборе
 - Добавить отчеты, хранение результатов и авторизацию
+
+## Метрики в проекте
+### Базовые статистические метрики
+- [x] Лексическое разнообразие (lexical diversity). Файл lexical_diversity.py;
+- [x] Вариативность структуры текста (burstiness). Файл burstiness.py;
+- [x] Средняя длина предложений (average sentence length). Файл avg_lenght.py ;
+- [x] Энтропия текста (text entropy). Файл text_entropy.py;
+
+### LLM-ориентированные метрики
+- [ ] Перплексия (perplexity). Файл perplexity.py;
+- [ ] Коэффициент повторений (repetition score). Файл repetition_score.py;
+
+### Стилометрия
+- [ ] Доля стоп-слов (stop-word ratio). Файл stop_word.py;
+- [ ] Разнообразие длины слов (word lenght variation). Файл lenght_variation.py;
+- [ ] Доля знаков препинания (punctuation ratio). Файл punctuation_ratio.py;

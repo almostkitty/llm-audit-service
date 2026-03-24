@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM Audit Demo</title>
+</head>
+<body>
+  <h1>LLM Audit Demo</h1>
+
+  <textarea id="inputText" rows="10" cols="70" placeholder="Вставьте текст для анализа"></textarea>
+  <br />
+  <button id="analyzeBtn">Посчитать метрики</button>
+
+  <h2>Результат анализа</h2>
+  <pre id="result">Пока нет данных</pre>
+
+  <script>
+    const button = document.getElementById("analyzeBtn");
+    const textarea = document.getElementById("inputText");
+    const result = document.getElementById("result");
+
+    button.addEventListener("click", async () => {
+      const text = textarea.value.trim();
+
+      if (!text) {
+        result.textContent = "Введите текст для анализа.";
+        return;
+      }
+
+      result.textContent = "Считаем...";
+
+      try {
+        const formData = new FormData();
+        const file = new File([text], "input.txt", { type: "text/plain" });
+        formData.append("file", file);
+
+        const response = await fetch("/audit", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          result.textContent = `Ошибка: ${response.status}`;
+          return;
+        }
+
+        const data = await response.json();
+        result.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        result.textContent = "Ошибка запроса к API.";
+      }
+    });
+  </script>
+</body>
+</html>
