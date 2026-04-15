@@ -1,4 +1,5 @@
 from app.services.preprocessing.cleaner import clean_text
+from app.services.metrics.hidden_unicode import find_llm_unicode_signals
 from app.services.metrics.lexical_diversity import lexical_diversity
 from app.services.metrics.burstiness import burstiness
 from app.services.metrics.avg_lenght import average_sentence_length
@@ -11,6 +12,7 @@ from app.services.scoring.aggregator import compute_score
 
 
 def analyze_text(text: str) -> dict:
+    hidden_unicode = find_llm_unicode_signals(text)
     text = clean_text(text)
 
     metrics = {
@@ -29,4 +31,5 @@ def analyze_text(text: str) -> dict:
     return {
         "metrics": metrics,
         "llm_probability": score,
+        "hidden_unicode": hidden_unicode,
     }

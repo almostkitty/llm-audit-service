@@ -13,22 +13,28 @@
   <button id="analyzeBtn">Посчитать метрики</button>
 
   <h2>Результат анализа</h2>
+  <h3>Скрытые Unicode-сигналы</h3>
+  <p id="unicodeSummary">Пока нет данных</p>
+  <h3>Полный ответ API</h3>
   <pre id="result">Пока нет данных</pre>
 
   <script>
     const button = document.getElementById("analyzeBtn");
     const textarea = document.getElementById("inputText");
     const result = document.getElementById("result");
+    const unicodeSummary = document.getElementById("unicodeSummary");
 
     button.addEventListener("click", async () => {
       const text = textarea.value.trim();
 
       if (!text) {
         result.textContent = "Введите текст для анализа.";
+        unicodeSummary.textContent = "—";
         return;
       }
 
       result.textContent = "Считаем...";
+      unicodeSummary.textContent = "Считаем...";
 
       try {
         const formData = new FormData();
@@ -42,13 +48,33 @@
 
         if (!response.ok) {
           result.textContent = `Ошибка: ${response.status}`;
+          unicodeSummary.textContent = "—";
           return;
         }
 
         const data = await response.json();
         result.textContent = JSON.stringify(data, null, 2);
+
+        const hu = data.hidden_unicode;
+        if (hu) {
+          const parts = [];
+          parts.push(hu.has_signals ? "Обнаружены признаки." : "Признаков нет.");
+          if (hu.total_flagged_characters > 0) {
+            parts.push(`Отмечено символов: ${hu.total_flagged_characters}.`);
+          }
+          const esc = hu.latex_style_escapes || {};
+          if (esc.backslash_dollar || esc.backslash_tilde) {
+            parts.push(
+              `Экранирование (\\$ и \\~): ${esc.backslash_dollar} и ${esc.backslash_tilde}.`
+            );
+          }
+          unicodeSummary.textContent = parts.join(" ");
+        } else {
+          unicodeSummary.textContent = "Нет поля hidden_unicode в ответе.";
+        }
       } catch (error) {
         result.textContent = "Ошибка запроса к API.";
+        unicodeSummary.textContent = "—";
       }
     });
   </script>
