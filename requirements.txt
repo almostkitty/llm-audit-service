@@ -7,3 +7,4 @@ pymupdf4llm
 striprtf
 odfpy
 razdel
+pandas
