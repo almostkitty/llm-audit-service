@@ -8,3 +8,5 @@ striprtf
 odfpy
 razdel
 pandas
+transformers
+torch

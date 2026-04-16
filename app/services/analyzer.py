@@ -1,3 +1,5 @@
+import os
+
 from app.services.preprocessing.cleaner import clean_text
 from app.services.metrics.hidden_unicode import find_llm_unicode_signals
 from app.services.metrics.lexical_diversity import lexical_diversity
@@ -8,12 +10,14 @@ from app.services.metrics.stop_word import stop_word_ratio
 from app.services.metrics.lenght_variation import word_length_variation
 from app.services.metrics.punctuation_ratio import punctuation_ratio
 from app.services.metrics.repetition_score import repetition_score
+from app.services.metrics.perplexity import perplexity
 from app.services.scoring.aggregator import compute_score
 
 
 def analyze_text(text: str) -> dict:
-    hidden_unicode = find_llm_unicode_signals(text)
-    text = clean_text(text)
+    raw_text = text
+    hidden_unicode = find_llm_unicode_signals(raw_text)
+    text = clean_text(raw_text)
 
     metrics = {
         "lexical_diversity": lexical_diversity(text),
@@ -25,6 +29,8 @@ def analyze_text(text: str) -> dict:
         "punctuation_ratio": punctuation_ratio(text),
         "repetition_score": repetition_score(text),
     }
+    if os.getenv("ENABLE_PERPLEXITY", "0") == "1":
+        metrics["perplexity"] = perplexity(raw_text)
 
     score = compute_score(metrics)
 
