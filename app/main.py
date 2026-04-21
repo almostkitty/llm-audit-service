@@ -1,26 +1,46 @@
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from starlette.templating import Jinja2Templates
+
 from app.api.routes import audit, extract
 
+TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 app = FastAPI()
 app.include_router(audit.router)
 app.include_router(extract.router)
+
 
 @app.get("/")
 def root():
     return {"message": "LLM Audit Service is running"}
 
 
-@app.get("/demo")
-def demo_page():
-    demo_path = Path(__file__).parent / "templates" / "demo.html"
-    return FileResponse(demo_path)
+@app.get("/demo", response_class=HTMLResponse)
+def demo_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "demo.html",
+        {"active_page": "demo"},
+    )
 
 
-@app.get("/extract")
-def extract_page():
-    path = Path(__file__).parent / "templates" / "extract.html"
-    return FileResponse(path)
+@app.get("/info", response_class=HTMLResponse)
+def info_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "info.html",
+        {"active_page": "info"},
+    )
+
+
+@app.get("/extract", response_class=HTMLResponse)
+def extract_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "extract.html",
+        {"active_page": "extract"},
+    )

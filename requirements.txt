@@ -1,4 +1,6 @@
+certifi
 fastapi
+jinja2
 uvicorn
 numpy
 python-docx
@@ -8,5 +10,7 @@ striprtf
 odfpy
 razdel
 pandas
+scikit-learn
+catboost
 transformers
 torch

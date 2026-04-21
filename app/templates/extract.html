@@ -1,50 +1,50 @@
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Extract test</title>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Извлечение текста — LLM Audit{% endblock %}
+{% block content %}
+<div class="card">
   <h1>Извлечение текста</h1>
-
-  <input type="file" id="fileInput" accept=".pdf,.docx,.rtf,.odt,.txt,text/plain" />
-  <button id="extractBtn" type="button">Извлечь</button>
-
+  <p class="hint">Поддерживаются PDF, DOCX, RTF, ODT, TXT.</p>
+  <p>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.rtf,.odt,.txt,text/plain" />
+  </p>
+  <p><button id="extractBtn" type="button">Извлечь</button></p>
+</div>
+<div class="card">
   <h2>Результат</h2>
-  <textarea id="output" rows="20" cols="80" readonly placeholder="Здесь появится текст"></textarea>
+  <textarea id="output" rows="18" readonly placeholder="Здесь появится текст"></textarea>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const fileInput = document.getElementById("fileInput");
+  const extractBtn = document.getElementById("extractBtn");
+  const output = document.getElementById("output");
 
-  <script>
-    const fileInput = document.getElementById("fileInput");
-    const extractBtn = document.getElementById("extractBtn");
-    const output = document.getElementById("output");
+  extractBtn.addEventListener("click", async () => {
+    const file = fileInput.files[0];
+    if (!file) {
+      output.value = "Выберите файл.";
+      return;
+    }
 
-    extractBtn.addEventListener("click", async () => {
-      const file = fileInput.files[0];
-      if (!file) {
-        output.value = "Выберите файл.";
+    output.value = "Извлекаем...";
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/extract", { method: "POST", body: formData });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        output.value = data.detail || "Ошибка: " + res.status;
         return;
       }
 
-      output.value = "Извлекаем...";
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      try {
-        const res = await fetch("/extract", { method: "POST", body: formData });
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-          output.value = data.detail || "Ошибка: " + res.status;
-          return;
-        }
-
-        output.value = data.text ?? JSON.stringify(data, null, 2);
-      } catch (e) {
-        output.value = "Ошибка запроса.";
-      }
-    });
-  </script>
-</body>
-</html>
+      output.value = data.text ?? JSON.stringify(data, null, 2);
+    } catch (e) {
+      output.value = "Ошибка запроса.";
+    }
+  });
+</script>
+{% endblock %}

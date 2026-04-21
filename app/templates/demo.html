@@ -1,82 +1,170 @@
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LLM Audit Demo</title>
-</head>
-<body>
-  <h1>LLM Audit Demo</h1>
+{% extends "base.html" %}
+{% block title %}Детектор LLM — LLM Audit{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Детектор LLM</h1>
+  <div class="demo-warning" role="note">
+    <strong>Предупреждение</strong>
+    <p class="hint">
+      Результат анализа не является доказательством происхождения текста и не гарантирует, что фрагмент написан человеком или языковой моделью.
+    </p>
+  </div>
+  <div class="input-panel">
+    <label class="input-panel__label-t" for="inputText">Текст для анализа</label>
+    <span class="input-panel__label-d">Документ</span>
+    <div class="input-panel__textarea-wrap">
+      <textarea id="inputText" rows="12" placeholder="Вставьте текст из буфера или выберите файл справа"></textarea>
+    </div>
+    <aside class="input-panel__aside" aria-label="Загрузка файла">
+      <p class="hint">
+        Поддерживаются форматы PDF, DOCX, RTF, ODT, TXT.
+      </p>
+      <input type="file" id="fileInput" accept=".pdf,.docx,.rtf,.odt,.txt,text/plain" />
+      <p id="fileStatus" class="hint" aria-live="polite"></p>
+    </aside>
+  </div>
+  <p class="input-panel__action">
+    <button id="analyzeBtn" type="button" class="btn-primary-wide">Посчитать метрики</button>
+  </p>
+</div>
 
-  <textarea id="inputText" rows="10" cols="70" placeholder="Вставьте текст для анализа"></textarea>
-  <br />
-  <button id="analyzeBtn">Посчитать метрики</button>
-
+<div class="card">
   <h2>Результат анализа</h2>
+  <h3>Краткая сводка</h3>
+  <p id="scoreSummary">Пока нет данных</p>
+  <p id="scoreDisclaimer" class="hint"></p>
   <h3>Скрытые Unicode-сигналы</h3>
   <p id="unicodeSummary">Пока нет данных</p>
   <h3>Полный ответ API</h3>
   <pre id="result">Пока нет данных</pre>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const analyzeBtn = document.getElementById("analyzeBtn");
+  const fileInput = document.getElementById("fileInput");
+  const fileStatus = document.getElementById("fileStatus");
+  const textarea = document.getElementById("inputText");
+  const result = document.getElementById("result");
+  const unicodeSummary = document.getElementById("unicodeSummary");
+  const scoreSummary = document.getElementById("scoreSummary");
+  const scoreDisclaimer = document.getElementById("scoreDisclaimer");
 
-  <script>
-    const button = document.getElementById("analyzeBtn");
-    const textarea = document.getElementById("inputText");
-    const result = document.getElementById("result");
-    const unicodeSummary = document.getElementById("unicodeSummary");
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    fileStatus.textContent = "";
+    if (!file) return;
 
-    button.addEventListener("click", async () => {
-      const text = textarea.value.trim();
+    fileStatus.textContent = "Извлекаем текст из файла…";
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/extract", { method: "POST", body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        fileStatus.textContent = data.detail || "Ошибка извлечения: " + res.status;
+        return;
+      }
+      const t = data.text;
+      if (typeof t !== "string" || !t.trim()) {
+        fileStatus.textContent = "В ответе нет текста.";
+        return;
+      }
+      textarea.value = t;
+      fileStatus.textContent =
+        "Готово: " + t.length.toLocaleString("ru-RU") + " символов. При необходимости отредактируйте.";
+   
+    } catch (e) {
+      fileStatus.textContent = "Ошибка запроса к серверу.";
+    }
+  });
 
-      if (!text) {
-        result.textContent = "Введите текст для анализа.";
+  async function runAudit() {
+    const text = textarea.value.trim();
+
+    if (!text) {
+      result.textContent = "Введите текст или выберите файл выше.";
+      unicodeSummary.textContent = "—";
+      scoreSummary.textContent = "—";
+      scoreDisclaimer.textContent = "";
+      return;
+    }
+
+    result.textContent = "Считаем...";
+    unicodeSummary.textContent = "Считаем...";
+    scoreSummary.textContent = "Считаем...";
+    scoreDisclaimer.textContent = "";
+
+    try {
+      const formData = new FormData();
+      const file = new File([text], "input.txt", { type: "text/plain" });
+      formData.append("file", file);
+
+      const response = await fetch("/audit", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        result.textContent = `Ошибка: ${response.status}`;
         unicodeSummary.textContent = "—";
+        scoreSummary.textContent = "—";
+        scoreDisclaimer.textContent = "";
         return;
       }
 
-      result.textContent = "Считаем...";
-      unicodeSummary.textContent = "Считаем...";
+      const data = await response.json();
+      result.textContent = JSON.stringify(data, null, 2);
 
-      try {
-        const formData = new FormData();
-        const file = new File([text], "input.txt", { type: "text/plain" });
-        formData.append("file", file);
-
-        const response = await fetch("/audit", {
-          method: "POST",
-          body: formData
-        });
-
-        if (!response.ok) {
-          result.textContent = `Ошибка: ${response.status}`;
-          unicodeSummary.textContent = "—";
-          return;
-        }
-
-        const data = await response.json();
-        result.textContent = JSON.stringify(data, null, 2);
-
-        const hu = data.hidden_unicode;
-        if (hu) {
-          const parts = [];
-          parts.push(hu.has_signals ? "Обнаружены признаки." : "Признаков нет.");
-          if (hu.total_flagged_characters > 0) {
-            parts.push(`Отмечено символов: ${hu.total_flagged_characters}.`);
-          }
-          const esc = hu.latex_style_escapes || {};
-          if (esc.backslash_dollar || esc.backslash_tilde) {
-            parts.push(
-              `Экранирование (\\$ и \\~): ${esc.backslash_dollar} и ${esc.backslash_tilde}.`
-            );
-          }
-          unicodeSummary.textContent = parts.join(" ");
-        } else {
-          unicodeSummary.textContent = "Нет поля hidden_unicode в ответе.";
-        }
-      } catch (error) {
-        result.textContent = "Ошибка запроса к API.";
-        unicodeSummary.textContent = "—";
+      const m = data.metrics || {};
+      const sc = data.scoring || {};
+      const p = data.llm_probability;
+      const hasPpl = typeof m.perplexity === "number";
+      const partsScore = [];
+      if (typeof p === "number") {
+        partsScore.push(`llm_probability: ${p.toFixed(4)}`);
+      } else {
+        partsScore.push("llm_probability: —");
       }
-    });
-  </script>
-</body>
-</html>
+      if (typeof sc.logit === "number") {
+        partsScore.push(`logit: ${sc.logit.toFixed(4)} (чем дальше от 0, тем «увереннее» сигмоида)`);
+      }
+      if (typeof m.unicode === "number") {
+        partsScore.push(`metrics.unicode (как в манифесте): ${m.unicode}`);
+      }
+      if (hasPpl) {
+        partsScore.push(`perplexity: ${m.perplexity.toFixed(4)} (логрег активен)`);
+      } else {
+        partsScore.push("perplexity: нет — скор по запасной эвристике (включите ENABLE_PERPLEXITY=1)");
+      }
+      scoreSummary.textContent = partsScore.join(" · ");
+      scoreDisclaimer.textContent = sc.disclaimer || "";
+
+      const hu = data.hidden_unicode;
+      if (hu) {
+        const parts = [];
+        parts.push(hu.has_signals ? "Обнаружены признаки." : "Признаков нет.");
+        if (hu.total_flagged_characters > 0) {
+          parts.push(`Отмечено символов: ${hu.total_flagged_characters}.`);
+        }
+        const esc = hu.latex_style_escapes || {};
+        if (esc.backslash_dollar || esc.backslash_tilde) {
+          parts.push(
+            `Экранирование (\\$ и \\~): ${esc.backslash_dollar} и ${esc.backslash_tilde}.`
+          );
+        }
+        unicodeSummary.textContent = parts.join(" ");
+      } else {
+        unicodeSummary.textContent = "Нет поля hidden_unicode в ответе.";
+      }
+    } catch (error) {
+      result.textContent = "Ошибка запроса к API.";
+      unicodeSummary.textContent = "—";
+      scoreSummary.textContent = "—";
+      scoreDisclaimer.textContent = "";
+    }
+  }
+
+  analyzeBtn.addEventListener("click", () => runAudit());
+</script>
+{% endblock %}

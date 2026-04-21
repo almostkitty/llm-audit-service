@@ -22,12 +22,30 @@ def _load_model_and_tokenizer(model_name: str):
         ) from exc
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # Длинные ВКР: полный текст кодируем в ids целиком, а в модель подаём только окна ≤ n_positions.
+    # Иначе tokenizer предупреждает «sequence length … > max» (7939 > 2048), хотя forward идёт по слайсам.
+    tokenizer.model_max_length = 1_000_000
     model = AutoModelForCausalLM.from_pretrained(model_name)
     model.eval()
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = _resolve_torch_device(torch)
     model.to(device)
     return model, tokenizer, device, torch
+
+
+def _resolve_torch_device(torch) -> str:
+    """
+    cuda → Apple MPS → cpu. Переопределение: ``PERPLEXITY_DEVICE=cuda|mps|cpu``.
+    На Apple Silicon M2 ``mps`` обычно быстрее, чем чистый CPU (если PyTorch собран с MPS).
+    """
+    forced = (os.getenv("PERPLEXITY_DEVICE") or "").strip().lower()
+    if forced in ("cuda", "mps", "cpu"):
+        return forced
+    if torch.cuda.is_available():
+        return "cuda"
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
 
 
 def perplexity(
@@ -49,11 +67,14 @@ def perplexity(
     model_name = model_name or os.getenv("PERPLEXITY_MODEL_NAME", DEFAULT_MODEL_NAME)
     model, tokenizer, device, torch = _load_model_and_tokenizer(model_name)
 
-    enc = tokenizer(text, return_tensors="pt")
-    input_ids = enc["input_ids"].to(device)
-    seq_len = input_ids.size(1)
+    ids = tokenizer.encode(text, add_special_tokens=False)
+    seq_len = len(ids)
+    input_ids = torch.tensor([ids], dtype=torch.long, device=device)
 
-    max_len = getattr(model.config, "n_positions", 1024)
+    max_len = int(
+        getattr(model.config, "n_positions", None)
+        or getattr(model.config, "max_position_embeddings", 1024)
+    )
     nlls = []
     prev_end = 0
 

@@ -11,7 +11,7 @@ from app.services.metrics.lenght_variation import word_length_variation
 from app.services.metrics.punctuation_ratio import punctuation_ratio
 from app.services.metrics.repetition_score import repetition_score
 from app.services.metrics.perplexity import perplexity
-from app.services.scoring.aggregator import compute_score
+from app.services.scoring import score_with_meta
 
 
 def analyze_text(text: str) -> dict:
@@ -32,10 +32,15 @@ def analyze_text(text: str) -> dict:
     if os.getenv("ENABLE_PERPLEXITY", "0") == "1":
         metrics["perplexity"] = perplexity(raw_text)
 
-    score = compute_score(metrics)
+    # Как в manifest: 0/1 по исходной строке (согласовано с пилотной логрегрессией).
+    metrics["unicode"] = 1.0 if hidden_unicode.get("has_signals") else 0.0
+
+    # Возвращает (float, dict); не путать с compute_score — тот даёт только число без scoring.
+    score, scoring_meta = score_with_meta(metrics)
 
     return {
         "metrics": metrics,
         "llm_probability": score,
+        "scoring": scoring_meta,
         "hidden_unicode": hidden_unicode,
     }

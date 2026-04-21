@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}LLM Audit{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --surface: #fff;
+      --text: #1a1d26;
+      --muted: #5c6370;
+      --border: #e2e5eb;
+      --accent: #2563eb;
+      --accent-muted: #dbeafe;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: var(--text);
+      background: var(--bg);
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .shell {
+      max-width: 56rem;
+      margin: 0 auto;
+      padding: 0 1.25rem 2.5rem;
+    }
+    .site-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+    .site-header .shell { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+    .site-nav {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem 1rem;
+      font-size: 0.95rem;
+    }
+    .site-nav a {
+      color: var(--text);
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+    }
+    .site-nav a:hover { background: var(--accent-muted); text-decoration: none; }
+    .site-nav a[aria-current="page"] {
+      font-weight: 600;
+      background: var(--accent-muted);
+      color: var(--accent);
+    }
+    .site-nav .sep { color: var(--border); user-select: none; }
+    main.shell { padding-top: 0; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .card ul, .card ol {
+      margin: 0.35rem 0 0.75rem;
+      padding-left: 1.35rem;
+      color: var(--text);
+    }
+    .card li { margin: 0.35rem 0; }
+    .card h2:first-of-type { margin-top: 0; }
+    .info-lead {
+      font-size: 1.05rem;
+      line-height: 1.55;
+      margin: 0 0 1rem;
+      color: var(--text);
+    }
+    h1 { font-size: 1.5rem; margin: 0 0 0.75rem; font-weight: 650; }
+    h2 { font-size: 1.15rem; margin: 1.25rem 0 0.5rem; font-weight: 600; }
+    h3 { font-size: 1.05rem; margin: 1rem 0 0.35rem; font-weight: 600; }
+    h4 { font-size: 0.95rem; margin: 0.75rem 0 0.35rem; font-weight: 600; }
+    p { margin: 0.5rem 0; color: var(--text); }
+    .hint { font-size: 0.9rem; color: var(--muted); max-width: 52rem; }
+    .demo-warning {
+      border-left: 4px solid #f59e0b;
+      padding: 0.65rem 0 0.65rem 1rem;
+      margin: 0 0 0.75rem;
+      background: #fffbeb;
+      border-radius: 0 8px 8px 0;
+    }
+    .demo-warning strong { display: block; color: #92400e; margin-bottom: 0.35rem; }
+    .demo-warning .hint { margin: 0; color: #78350f; max-width: none; }
+    code {
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 0.88em;
+      background: #eef0f4;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+    textarea, input[type="file"] {
+      font: inherit;
+      width: 100%;
+      max-width: 100%;
+    }
+    textarea {
+      padding: 0.6rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      resize: vertical;
+      min-height: 12rem;
+    }
+    /* Детектор: подписи в одном ряду, колонки одной высоты */
+    .input-panel {
+      display: grid;
+      grid-template-columns: 1fr minmax(12rem, 18rem);
+      grid-template-rows: auto 1fr;
+      gap: 0.4rem 1.25rem;
+      align-items: stretch;
+      margin: 0.75rem 0 0;
+      min-height: 0;
+    }
+    .input-panel__label-t,
+    .input-panel__label-d {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 0;
+      padding-top: 0.1rem;
+      line-height: 1.3;
+    }
+    .input-panel__label-t { grid-column: 1; grid-row: 1; }
+    .input-panel__label-d { grid-column: 2; grid-row: 1; }
+    .input-panel__textarea-wrap {
+      grid-column: 1;
+      grid-row: 2;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 18rem;
+    }
+    .input-panel__textarea-wrap textarea {
+      flex: 1 1 auto;
+      width: 100%;
+      min-height: 0;
+      resize: vertical;
+    }
+    .input-panel__aside {
+      grid-column: 2;
+      grid-row: 2;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 0.9rem;
+      background: #fafbfc;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-height: 18rem;
+    }
+    .input-panel__aside .hint { margin: 0; max-width: none; font-size: 0.82rem; }
+    .input-panel__aside input[type="file"] {
+      font-size: 0.85rem;
+      width: 100%;
+    }
+    .input-panel__aside #fileStatus {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
+    }
+    .input-panel__action {
+      margin: 1rem 0 0;
+    }
+    .input-panel__action .btn-primary-wide {
+      width: 100%;
+      margin: 0;
+      padding: 0.55rem 1rem;
+    }
+    @media (max-width: 720px) {
+      .input-panel {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto auto;
+      }
+      .input-panel__label-t { grid-column: 1; grid-row: 1; }
+      .input-panel__textarea-wrap { grid-column: 1; grid-row: 2; min-height: 14rem; }
+      .input-panel__label-d { grid-column: 1; grid-row: 3; padding-top: 0.5rem; }
+      .input-panel__aside { grid-column: 1; grid-row: 4; min-height: auto; }
+    }
+    button {
+      font: inherit;
+      cursor: pointer;
+      padding: 0.45rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      margin-top: 0.5rem;
+    }
+    button:hover { filter: brightness(1.05); }
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.45;
+      max-width: 52rem;
+      white-space: pre-wrap;
+    }
+    .site-footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+  </style>
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell">
+      {% include "_nav.html" %}
+    </div>
+  </header>
+  <main class="shell">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="shell site-footer">
+    LLM Audit Service. API: <a href="/docs">/docs</a>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
