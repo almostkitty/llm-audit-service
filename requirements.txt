@@ -1,6 +1,7 @@
 certifi
 fastapi
 jinja2
+sqlmodel
 uvicorn
 numpy
 python-docx
