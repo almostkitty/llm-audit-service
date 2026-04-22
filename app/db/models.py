@@ -26,7 +26,7 @@ class User(SQLModel, table=True):
 
 
 class AppSetting(SQLModel, table=True):
-    """Ключ–значение для глобальных настроек (лимиты, флаги), редактируемых админом."""
+    """Ключ–значение для глобальных настроек (лимиты, флаги)."""
 
     __tablename__ = "app_settings"
 

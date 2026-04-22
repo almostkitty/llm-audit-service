@@ -23,3 +23,8 @@ def sql_echo() -> bool:
 
 
 DATABASE_URL = get_database_url()
+
+# JWT (в продакшене задайте свой длинный секрет в окружении)
+JWT_SECRET = (os.getenv("JWT_SECRET") or "dev-secret-min-32-chars-long!!").strip()
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_MINUTES = int((os.getenv("JWT_EXPIRE_MINUTES") or "4320").strip() or "4320")  # 3 дня по умолчанию

@@ -1,7 +1,9 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, File, UploadFile
+
 from app.services.analyzer import analyze_text
 
 router = APIRouter()
+
 
 @router.post("/audit")
 async def audit_file(file: UploadFile = File(...)):

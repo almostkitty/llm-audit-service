@@ -1,6 +1,9 @@
 certifi
+bcrypt
+email-validator
 fastapi
 jinja2
+PyJWT
 sqlmodel
 uvicorn
 numpy

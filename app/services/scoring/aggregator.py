@@ -117,16 +117,6 @@ def _compute_legacy_heuristic(metrics: Mapping[str, float]) -> float:
     return min(score, 1.0)
 
 
-DISCLAIMER_LOGREG = (
-    "Пилотная логрегрессия (обучение на n=24). Число llm_probability — не вердикт о происхождении текста: "
-    "модель не калибрована на произвольные ВКР и даёт экстремальные вероятности при сильном логите."
-)
-
-DISCLAIMER_LEGACY = (
-    "Запасная эвристика по четырём метрикам; не эквивалентна пилотной логрегрессии из эксперимента."
-)
-
-
 def score_with_meta(metrics: Mapping[str, float]) -> tuple[float, dict[str, Any]]:
     """
     То же, что compute_score, плюс поля для прозрачности (logit, вклад признаков, дисклеймер).
@@ -144,16 +134,14 @@ def score_with_meta(metrics: Mapping[str, float]) -> tuple[float, dict[str, Any]
         meta: dict[str, Any] = {
             "mode": "logreg_pilot",
             "logit": logit,
-            "feature_contributions": rows,
-            "disclaimer": DISCLAIMER_LOGREG,
+            "feature_contributions": rows
         }
         return p, meta
     p = _compute_legacy_heuristic(metrics)
     return p, {
         "mode": "legacy_heuristic",
         "logit": None,
-        "feature_contributions": None,
-        "disclaimer": DISCLAIMER_LEGACY,
+        "feature_contributions": None
     }
 
 

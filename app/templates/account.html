@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Аккаунт — LLM Audit{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Аккаунт</h1>
+
+  <div id="accountLoading">
+    <p class="hint">Загрузка…</p>
+  </div>
+
+  <div id="accountGuest" hidden>
+    <p>Чтобы видеть профиль, <a href="/login">войдите</a> или <a href="/register">зарегистрируйтесь</a>.</p>
+  </div>
+
+  <div id="accountUser" hidden>
+    <p id="profileMsg" class="hint" style="color: #15803d;"></p>
+    <p id="profileErr" class="hint" style="color: #b91c1c;"></p>
+
+    <h2>Профиль</h2>
+    <dl class="account-dl">
+      <dt>Email</dt>
+      <dd id="accEmail">—</dd>
+      <dt>Роль</dt>
+      <dd id="accRole">—</dd>
+    </dl>
+    <p>
+      <button type="button" class="btn-secondary" id="logoutBtn">Выйти</button>
+    </p>
+
+    <h2>Сменить email</h2>
+    <form id="formEmail" class="auth-form">
+      <p>
+        <label for="newEmail">Новый email</label><br />
+        <input id="newEmail" name="email" type="email" required autocomplete="email" />
+      </p>
+      <p>
+        <label for="pwdEmail">Текущий пароль</label><br />
+        <input id="pwdEmail" name="current_password" type="password" required autocomplete="current-password" />
+      </p>
+      <p><button type="submit">Сохранить email</button></p>
+    </form>
+
+    <h2>Сменить пароль</h2>
+    <form id="formPassword" class="auth-form">
+      <p>
+        <label for="pwdCur">Текущий пароль</label><br />
+        <input id="pwdCur" type="password" required autocomplete="current-password" />
+      </p>
+      <p>
+        <label for="pwdNew">Новый пароль</label> <span class="hint">(не короче 6 символов)</span><br />
+        <input id="pwdNew" type="password" required minlength="6" autocomplete="new-password" />
+      </p>
+      <p>
+        <label for="pwdNew2">Новый пароль ещё раз</label><br />
+        <input id="pwdNew2" type="password" required minlength="6" autocomplete="new-password" />
+      </p>
+      <p><button type="submit">Сменить пароль</button></p>
+    </form>
+
+    <h2>Удалить аккаунт</h2>
+    <form id="formDelete" class="auth-form">
+      <p>
+        <label for="pwdDel">Пароль для подтверждения</label><br />
+        <input id="pwdDel" type="password" required autocomplete="current-password" />
+      </p>
+      <p><button type="submit" class="btn-secondary">Удалить аккаунт</button></p>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  function roleLabel(role) {
+    const m = {
+      student: "Студент",
+      teacher: "Преподаватель",
+      user: "Пользователь",
+    };
+    return m[role] || role;
+  }
+
+  function authJsonHeaders() {
+    const t = localStorage.getItem("access_token");
+    const h = { "Content-Type": "application/json" };
+    if (t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+
+  function clearProfileMessages() {
+    const m = document.getElementById("profileMsg");
+    const e = document.getElementById("profileErr");
+    if (m) m.textContent = "";
+    if (e) e.textContent = "";
+  }
+
+  function showErr(msg) {
+    clearProfileMessages();
+    document.getElementById("profileErr").textContent = msg;
+  }
+
+  function showOk(msg) {
+    clearProfileMessages();
+    document.getElementById("profileMsg").textContent = msg;
+  }
+
+  async function loadAccount() {
+    const loading = document.getElementById("accountLoading");
+    const guest = document.getElementById("accountGuest");
+    const userEl = document.getElementById("accountUser");
+    const token = localStorage.getItem("access_token");
+
+    if (!token) {
+      loading.hidden = true;
+      guest.hidden = false;
+      return;
+    }
+
+    const res = await fetch("/api/auth/me", {
+      headers: { Authorization: "Bearer " + token },
+    });
+
+    loading.hidden = true;
+
+    if (!res.ok) {
+      localStorage.removeItem("access_token");
+      guest.hidden = false;
+      return;
+    }
+
+    const data = await res.json();
+    document.getElementById("accEmail").textContent = data.email;
+    document.getElementById("accRole").textContent = roleLabel(data.role);
+    const ne = document.getElementById("newEmail");
+    if (ne) ne.value = data.email;
+    userEl.hidden = false;
+  }
+
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    localStorage.removeItem("access_token");
+    window.location.href = "/login";
+  });
+
+  document.getElementById("formEmail").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearProfileMessages();
+    const fd = new FormData(e.target);
+    const res = await fetch("/api/auth/me", {
+      method: "PATCH",
+      headers: authJsonHeaders(),
+      body: JSON.stringify({
+        email: fd.get("email"),
+        current_password: fd.get("current_password"),
+      }),
+    });
+    if (!res.ok) {
+      try {
+        const j = await res.json();
+        showErr(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail));
+      } catch {
+        showErr("Ошибка сохранения");
+      }
+      return;
+    }
+    const data = await res.json();
+    document.getElementById("accEmail").textContent = data.email;
+    document.getElementById("newEmail").value = data.email;
+    e.target.querySelector('[name="current_password"]').value = "";
+    showOk("Email обновлён.");
+  });
+
+  document.getElementById("formPassword").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearProfileMessages();
+    const cur = document.getElementById("pwdCur").value;
+    const n1 = document.getElementById("pwdNew").value;
+    const n2 = document.getElementById("pwdNew2").value;
+    if (n1 !== n2) {
+      showErr("Новые пароли не совпадают.");
+      return;
+    }
+    const res = await fetch("/api/auth/me", {
+      method: "PATCH",
+      headers: authJsonHeaders(),
+      body: JSON.stringify({
+        current_password: cur,
+        new_password: n1,
+      }),
+    });
+    if (!res.ok) {
+      try {
+        const j = await res.json();
+        showErr(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail));
+      } catch {
+        showErr("Ошибка");
+      }
+      return;
+    }
+    document.getElementById("pwdCur").value = "";
+    document.getElementById("pwdNew").value = "";
+    document.getElementById("pwdNew2").value = "";
+    showOk("Пароль обновлён.");
+  });
+
+  document.getElementById("formDelete").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearProfileMessages();
+    const pwd = document.getElementById("pwdDel").value;
+    if (!window.confirm("Удалить аккаунт без возможности восстановления?")) return;
+
+    const res = await fetch("/api/auth/me", {
+      method: "DELETE",
+      headers: authJsonHeaders(),
+      body: JSON.stringify({ password: pwd }),
+    });
+
+    if (!res.ok) {
+      try {
+        const j = await res.json();
+        showErr(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail));
+      } catch {
+        showErr("Ошибка удаления");
+      }
+      return;
+    }
+
+    localStorage.removeItem("access_token");
+    window.location.href = "/login";
+  });
+
+  loadAccount();
+</script>
+{% endblock %}

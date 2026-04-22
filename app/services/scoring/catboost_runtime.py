@@ -17,11 +17,6 @@ from typing import Any, Mapping
 
 import pandas as pd
 
-DISCLAIMER_CATBOOST = (
-    "CatBoost по табличным метрикам; обучение на вашем корпусе ВКР. "
-    "Вероятность не является юридическим доказательством происхождения текста."
-)
-
 
 def _project_root() -> Path:
     return Path(__file__).resolve().parents[3]
@@ -106,8 +101,7 @@ def predict_llm_probability(metrics: Mapping[str, Any]) -> tuple[float, dict[str
 
     meta: dict[str, Any] = {
         "mode": "catboost",
-        "model_path": str(model_path),
-        "disclaimer": DISCLAIMER_CATBOOST,
+        "model_path": str(model_path)
     }
     return p, meta
 

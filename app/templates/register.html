@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Регистрация — LLM Audit{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Регистрация</h1>
+  <p class="hint">Уже есть аккаунт? <a href="/login">Вход</a></p>
+  <form id="registerForm" class="auth-form">
+    <p>
+      <label for="email">Email</label><br />
+      <input id="email" name="email" type="email" autocomplete="email" required />
+    </p>
+    <p>
+      <label for="password">Пароль</label> <span class="hint">(не короче 6 символов)</span><br />
+      <input id="password" name="password" type="password" autocomplete="new-password" required minlength="6" />
+    </p>
+    <p>
+      <label for="role">Роль:</label><br />
+      <label><input type="radio" name="role" value="student" checked />Студент</label>
+      <label><input type="radio" name="role" value="teacher" />Преподаватель</label>
+    </p>
+    <p><button type="submit" class="btn-primary-wide">Зарегистрироваться</button></p>
+  </form>
+  <p id="authError" class="hint" style="color: #b91c1c;"></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.getElementById("registerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const err = document.getElementById("authError");
+    err.textContent = "";
+    const fd = new FormData(e.target);
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: fd.get("email"),
+        password: fd.get("password"),
+        role: fd.get("role") || "student",
+      }),
+    });
+    if (!res.ok) {
+      try {
+        const j = await res.json();
+        err.textContent = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+      } catch {
+        err.textContent = "Ошибка сервера";
+      }
+      return;
+    }
+    const data = await res.json();
+    localStorage.setItem("access_token", data.access_token);
+    window.location.href = "/demo";
+  });
+</script>
+{% endblock %}

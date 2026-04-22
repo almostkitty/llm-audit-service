@@ -1,5 +1,84 @@
 {% extends "base.html" %}
 {% block title %}Детектор LLM — LLM Audit{% endblock %}
+{% block head_extra %}
+<style>
+  .score-summary { margin-top: 0.35rem; }
+  .score-summary__hero {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem 2rem;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+  }
+  .score-summary__metric {
+    min-width: 12rem;
+  }
+  .score-summary__label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+  }
+  .score-summary__value {
+    font-size: 1.85rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .score-summary__value.is-muted { color: var(--muted); font-size: 1rem; font-weight: 500; }
+  .score-summary__hint {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-top: 0.35rem;
+    max-width: 22rem;
+    line-height: 1.4;
+  }
+  .score-summary__dl {
+    margin: 0;
+    flex: 1;
+    min-width: 16rem;
+    display: grid;
+    gap: 0.55rem 0;
+  }
+  .score-summary__row {
+    display: grid;
+    grid-template-columns: minmax(9rem, 11rem) 1fr;
+    gap: 0.5rem 1rem;
+    align-items: baseline;
+    font-size: 0.92rem;
+  }
+  .score-summary__row dt {
+    margin: 0;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .score-summary__row dd {
+    margin: 0;
+    word-break: break-word;
+  }
+  .score-summary__tech {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.15rem;
+  }
+  .api-json-details {
+    margin-top: 0.75rem;
+  }
+  .api-json-details summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+  }
+  .api-json-details summary:hover { color: var(--text); }
+  .api-json-details pre { margin-top: 0; }
+</style>
+{% endblock %}
 {% block content %}
 <div class="card">
   <h1>Детектор LLM</h1>
@@ -30,25 +109,120 @@
 
 <div class="card">
   <h2>Результат анализа</h2>
-  <h3>Краткая сводка</h3>
-  <p id="scoreSummary">Пока нет данных</p>
-  <p id="scoreDisclaimer" class="hint"></p>
-  <h3>Скрытые Unicode-сигналы</h3>
-  <p id="unicodeSummary">Пока нет данных</p>
-  <h3>Полный ответ API</h3>
-  <pre id="result">Пока нет данных</pre>
+
+  <section class="score-summary" aria-labelledby="summary-heading">
+    <h3 id="summary-heading">Краткая сводка</h3>
+    <div class="score-summary__hero">
+      <div class="score-summary__metric">
+        <span class="score-summary__label">Оценка «похожести на LLM»</span>
+        <span id="scoreProbability" class="score-summary__value is-muted" aria-live="polite">—</span>
+      </div>
+      <dl class="score-summary__dl">
+        <div class="score-summary__row">
+          <dt>Как посчитано</dt>
+          <dd id="scoreModeLine">—</dd>
+        </div>
+        <div class="score-summary__row">
+          <dt>Перплексия</dt>
+          <dd id="scorePerplexityLine">—</dd>
+        </div>
+        <div class="score-summary__row">
+          <dt>Unicode-сигналы</dt>
+          <dd id="scoreUnicodeLine">—</dd>
+        </div>
+      </dl>
+    </div>
+    <p id="scoreDisclaimer" class="hint"></p>
+  </section>
+
+  <details class="api-json-details">
+    <summary>Полный ответ API (JSON)</summary>
+    <pre id="result">Пока нет данных</pre>
+  </details>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
+  const MODE_LABELS = {
+    catboost: "Обученная модель CatBoost.",
+    logreg_pilot: "Пилотная логрегрессия по полному набору признаков.",
+    legacy_heuristic: "Упрощённая оценка по четырём метрикам (без перплексии).",
+  };
+
   const analyzeBtn = document.getElementById("analyzeBtn");
   const fileInput = document.getElementById("fileInput");
   const fileStatus = document.getElementById("fileStatus");
   const textarea = document.getElementById("inputText");
   const result = document.getElementById("result");
-  const unicodeSummary = document.getElementById("unicodeSummary");
-  const scoreSummary = document.getElementById("scoreSummary");
+  const scoreProbability = document.getElementById("scoreProbability");
+  const scoreModeLine = document.getElementById("scoreModeLine");
+  const scorePerplexityLine = document.getElementById("scorePerplexityLine");
+  const scoreUnicodeLine = document.getElementById("scoreUnicodeLine");
   const scoreDisclaimer = document.getElementById("scoreDisclaimer");
+
+  function setScoreLoading() {
+    scoreProbability.textContent = "…";
+    scoreProbability.classList.add("is-muted");
+    scoreModeLine.textContent = "…";
+    scorePerplexityLine.textContent = "…";
+    scoreUnicodeLine.textContent = "…";
+    scoreDisclaimer.textContent = "";
+  }
+
+  function setScoreEmpty() {
+    scoreProbability.textContent = "—";
+    scoreProbability.classList.add("is-muted");
+    scoreModeLine.textContent = "—";
+    scorePerplexityLine.textContent = "—";
+    scoreUnicodeLine.textContent = "—";
+    scoreDisclaimer.textContent = "";
+  }
+
+  function renderScoreSummary(data) {
+    const m = data.metrics || {};
+    const sc = data.scoring || {};
+    const p = data.llm_probability;
+    const mode = sc.mode;
+    const hasPpl = typeof m.perplexity === "number";
+
+    if (typeof p === "number") {
+      scoreProbability.textContent = p.toFixed(4);
+      scoreProbability.classList.remove("is-muted");
+    } else {
+      scoreProbability.textContent = "—";
+      scoreProbability.classList.add("is-muted");
+    }
+
+    const modeText = MODE_LABELS[mode] || (mode ? `Режим: ${mode}` : "—");
+    scoreModeLine.textContent = modeText;
+
+    if (hasPpl) {
+      scorePerplexityLine.innerHTML =
+        `${m.perplexity.toFixed(4)} <span class="score-summary__tech">(считалась и входила в метрики)</span>`;
+    } else {
+      scorePerplexityLine.innerHTML = "Не считалась.";
+    }
+
+    const hu = data.hidden_unicode;
+    if (!hu) {
+      scoreUnicodeLine.textContent = "—";
+    } else {
+      const parts = [];
+      parts.push(hu.has_signals ? "Обнаружены признаки." : "Признаков нет.");
+      if (hu.total_flagged_characters > 0) {
+        parts.push(` Отмечено символов: ${hu.total_flagged_characters}.`);
+      }
+      const esc = hu.latex_style_escapes || {};
+      if (esc.backslash_dollar || esc.backslash_tilde) {
+        parts.push(
+          ` Экранирование (\\$ и \\~): ${esc.backslash_dollar} и ${esc.backslash_tilde}.`
+        );
+      }
+      scoreUnicodeLine.textContent = parts.join("");
+    }
+
+    scoreDisclaimer.textContent = sc.disclaimer || "";
+  }
 
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files[0];
@@ -84,16 +258,12 @@
 
     if (!text) {
       result.textContent = "Введите текст или выберите файл выше.";
-      unicodeSummary.textContent = "—";
-      scoreSummary.textContent = "—";
-      scoreDisclaimer.textContent = "";
+      setScoreEmpty();
       return;
     }
 
     result.textContent = "Считаем...";
-    unicodeSummary.textContent = "Считаем...";
-    scoreSummary.textContent = "Считаем...";
-    scoreDisclaimer.textContent = "";
+    setScoreLoading();
 
     try {
       const formData = new FormData();
@@ -107,61 +277,17 @@
 
       if (!response.ok) {
         result.textContent = `Ошибка: ${response.status}`;
-        unicodeSummary.textContent = "—";
-        scoreSummary.textContent = "—";
-        scoreDisclaimer.textContent = "";
+        setScoreEmpty();
         return;
       }
 
       const data = await response.json();
       result.textContent = JSON.stringify(data, null, 2);
 
-      const m = data.metrics || {};
-      const sc = data.scoring || {};
-      const p = data.llm_probability;
-      const hasPpl = typeof m.perplexity === "number";
-      const partsScore = [];
-      if (typeof p === "number") {
-        partsScore.push(`llm_probability: ${p.toFixed(4)}`);
-      } else {
-        partsScore.push("llm_probability: —");
-      }
-      if (typeof sc.logit === "number") {
-        partsScore.push(`logit: ${sc.logit.toFixed(4)} (чем дальше от 0, тем «увереннее» сигмоида)`);
-      }
-      if (typeof m.unicode === "number") {
-        partsScore.push(`metrics.unicode (как в манифесте): ${m.unicode}`);
-      }
-      if (hasPpl) {
-        partsScore.push(`perplexity: ${m.perplexity.toFixed(4)} (логрег активен)`);
-      } else {
-        partsScore.push("perplexity: нет — скор по запасной эвристике (включите ENABLE_PERPLEXITY=1)");
-      }
-      scoreSummary.textContent = partsScore.join(" · ");
-      scoreDisclaimer.textContent = sc.disclaimer || "";
-
-      const hu = data.hidden_unicode;
-      if (hu) {
-        const parts = [];
-        parts.push(hu.has_signals ? "Обнаружены признаки." : "Признаков нет.");
-        if (hu.total_flagged_characters > 0) {
-          parts.push(`Отмечено символов: ${hu.total_flagged_characters}.`);
-        }
-        const esc = hu.latex_style_escapes || {};
-        if (esc.backslash_dollar || esc.backslash_tilde) {
-          parts.push(
-            `Экранирование (\\$ и \\~): ${esc.backslash_dollar} и ${esc.backslash_tilde}.`
-          );
-        }
-        unicodeSummary.textContent = parts.join(" ");
-      } else {
-        unicodeSummary.textContent = "Нет поля hidden_unicode в ответе.";
-      }
+      renderScoreSummary(data);
     } catch (error) {
       result.textContent = "Ошибка запроса к API.";
-      unicodeSummary.textContent = "—";
-      scoreSummary.textContent = "—";
-      scoreDisclaimer.textContent = "";
+      setScoreEmpty();
     }
   }
 

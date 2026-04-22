@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Вход — LLM Audit{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Вход</h1>
+  <p class="hint">Нет аккаунта? <a href="/register">Регистрация</a></p>
+  <form id="loginForm" class="auth-form">
+    <p>
+      <label for="email">Email</label><br />
+      <input id="email" name="email" type="email" autocomplete="username" required />
+    </p>
+    <p>
+      <label for="password">Пароль</label><br />
+      <input id="password" name="password" type="password" autocomplete="current-password" required minlength="6" />
+    </p>
+    <p><button type="submit" class="btn-primary-wide">Войти</button></p>
+  </form>
+  <p id="authError" class="hint" style="color: #b91c1c;"></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const err = document.getElementById("authError");
+    err.textContent = "";
+    const fd = new FormData(e.target);
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: fd.get("email"),
+        password: fd.get("password"),
+      }),
+    });
+    if (!res.ok) {
+      try {
+        const j = await res.json();
+        err.textContent = j.detail || "Ошибка входа";
+      } catch {
+        err.textContent = "Ошибка сервера";
+      }
+      return;
+    }
+    const data = await res.json();
+    localStorage.setItem("access_token", data.access_token);
+    window.location.href = "/demo";
+  });
+</script>
+{% endblock %}
