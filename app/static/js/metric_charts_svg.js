@@ -33,10 +33,6 @@
 
   function numOrNull(raw) {
     if (raw == null) return null;
-    if (typeof raw === "number") {
-      if (raw !== raw) return null;
-      return raw;
-    }
     var n = Number(raw);
     return n !== n ? null : n;
   }
@@ -85,6 +81,22 @@
     return svg;
   }
 
+  function appendTickLabel(svg, x, y, text) {
+    svg.appendChild(
+      el(
+        "text",
+        {
+          x: String(x),
+          y: String(y),
+          "text-anchor": "middle",
+          fill: "#64748b",
+          "font-size": "9",
+        },
+        text
+      )
+    );
+  }
+
   function drawBernoulli(svg, p, val) {
     var H = PLOT_H * 0.72;
     var baseY = PAD_T + PLOT_H;
@@ -125,24 +137,8 @@
         "stroke-width": "3",
       })
     );
-    svg.appendChild(
-      el("text", {
-        x: String(x0),
-        y: String(baseY + 12),
-        "text-anchor": "middle",
-        fill: "#64748b",
-        "font-size": "9",
-      }, "0")
-    );
-    svg.appendChild(
-      el("text", {
-        x: String(x1),
-        y: String(baseY + 12),
-        "text-anchor": "middle",
-        fill: "#64748b",
-        "font-size": "9",
-      }, "1")
-    );
+    appendTickLabel(svg, x0, baseY + 12, "0");
+    appendTickLabel(svg, x1, baseY + 12, "1");
   }
 
   function drawNormal(svg, b, val) {
@@ -241,7 +237,7 @@
     var raw = metrics[key];
     var val = numOrNull(raw);
 
-    if (dist === "empty" || !b || (b.n != null && b.n === 0)) {
+    if (!b || dist === "empty" || (b.n != null && b.n === 0)) {
       var phParts = dist === "empty" ? ["Нет эталона"] : ["Нет данных"];
       if (val != null) phParts.unshift("v=" + val.toPrecision(4));
       wrap.appendChild(placeholderSvg(phParts.join(" · ")));
@@ -276,8 +272,9 @@
     if (!container) return;
     container.innerHTML = "";
     var bmap = (payload && payload.metrics) || {};
+    var safeMetrics = metrics || {};
     METRIC_ORDER.forEach(function (key) {
-      container.appendChild(renderCell(bmap[key], key, metrics || {}));
+      container.appendChild(renderCell(bmap[key], key, safeMetrics));
     });
   }
 

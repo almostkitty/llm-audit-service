@@ -70,6 +70,9 @@
 {% endblock %}
 {% block scripts %}
 <script>
+  const profileMsgEl = document.getElementById("profileMsg");
+  const profileErrEl = document.getElementById("profileErr");
+
   function roleLabel(role) {
     const m = {
       student: "Студент",
@@ -87,20 +90,32 @@
   }
 
   function clearProfileMessages() {
-    const m = document.getElementById("profileMsg");
-    const e = document.getElementById("profileErr");
-    if (m) m.textContent = "";
-    if (e) e.textContent = "";
+    if (profileMsgEl) profileMsgEl.textContent = "";
+    if (profileErrEl) profileErrEl.textContent = "";
   }
 
   function showErr(msg) {
     clearProfileMessages();
-    document.getElementById("profileErr").textContent = msg;
+    if (profileErrEl) profileErrEl.textContent = msg;
   }
 
   function showOk(msg) {
     clearProfileMessages();
-    document.getElementById("profileMsg").textContent = msg;
+    if (profileMsgEl) profileMsgEl.textContent = msg;
+  }
+
+  async function readErrorMessage(res, fallback) {
+    try {
+      const j = await res.json();
+      return typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
+    } catch {
+      return fallback;
+    }
+  }
+
+  function redirectToLogin() {
+    localStorage.removeItem("access_token");
+    window.location.href = "/login";
   }
 
   async function loadAccount() {
@@ -122,7 +137,7 @@
     loading.hidden = true;
 
     if (!res.ok) {
-      localStorage.removeItem("access_token");
+      redirectToLogin();
       guest.hidden = false;
       return;
     }
@@ -136,8 +151,7 @@
   }
 
   document.getElementById("logoutBtn").addEventListener("click", () => {
-    localStorage.removeItem("access_token");
-    window.location.href = "/login";
+    redirectToLogin();
   });
 
   document.getElementById("formEmail").addEventListener("submit", async (e) => {
@@ -153,12 +167,7 @@
       }),
     });
     if (!res.ok) {
-      try {
-        const j = await res.json();
-        showErr(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail));
-      } catch {
-        showErr("Ошибка сохранения");
-      }
+      showErr(await readErrorMessage(res, "Ошибка сохранения"));
       return;
     }
     const data = await res.json();
@@ -187,12 +196,7 @@
       }),
     });
     if (!res.ok) {
-      try {
-        const j = await res.json();
-        showErr(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail));
-      } catch {
-        showErr("Ошибка");
-      }
+      showErr(await readErrorMessage(res, "Ошибка"));
       return;
     }
     document.getElementById("pwdCur").value = "";
@@ -214,17 +218,11 @@
     });
 
     if (!res.ok) {
-      try {
-        const j = await res.json();
-        showErr(typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail));
-      } catch {
-        showErr("Ошибка удаления");
-      }
+      showErr(await readErrorMessage(res, "Ошибка удаления"));
       return;
     }
 
-    localStorage.removeItem("access_token");
-    window.location.href = "/login";
+    redirectToLogin();
   });
 
   loadAccount();

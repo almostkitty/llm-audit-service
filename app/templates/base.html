@@ -6,13 +6,13 @@
   <title>{% block title %}LLM Audit{% endblock %}</title>
   <style>
     :root {
-      --bg: #f6f7f9;
-      --surface: #fff;
-      --text: #1a1d26;
-      --muted: #5c6370;
-      --border: #e2e5eb;
-      --accent: #2563eb;
-      --accent-muted: #dbeafe;
+      --bg: rgb(245, 249, 251);
+      --surface: rgb(255, 255, 255);
+      --text: rgb(58, 67, 85);
+      --muted: rgb(94, 108, 132);
+      --border: rgb(192, 203, 217);
+      --accent: rgb(54, 133, 218);
+      --accent-muted: rgb(208, 215, 225);
     }
     * { box-sizing: border-box; }
     body {
@@ -51,12 +51,18 @@
       color: var(--text);
       padding: 0.35rem 0.5rem;
       border-radius: 6px;
+      border: 1px solid transparent;
+      transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
     }
-    .site-nav a:hover { background: var(--accent-muted); text-decoration: none; }
+    .site-nav a:hover,
+    .site-nav a[aria-current="page"] {
+      background: var(--accent-muted);
+      text-decoration: none;
+    }
     .site-nav a[aria-current="page"] {
       font-weight: 600;
-      background: var(--accent-muted);
       color: var(--accent);
+      border-color: var(--border);
     }
     .site-nav .sep { color: var(--border); user-select: none; }
     main.shell {

@@ -20,30 +20,38 @@
   const extractBtn = document.getElementById("extractBtn");
   const output = document.getElementById("output");
 
+  function setOutput(text) {
+    output.value = text;
+  }
+
+  async function parseJsonOrEmpty(res) {
+    return res.json().catch(() => ({}));
+  }
+
   extractBtn.addEventListener("click", async () => {
     const file = fileInput.files[0];
     if (!file) {
-      output.value = "Выберите файл.";
+      setOutput("Выберите файл.");
       return;
     }
 
-    output.value = "Извлекаем...";
+    setOutput("Извлекаем...");
 
     const formData = new FormData();
     formData.append("file", file);
 
     try {
       const res = await fetch("/extract", { method: "POST", body: formData });
-      const data = await res.json().catch(() => ({}));
+      const data = await parseJsonOrEmpty(res);
 
       if (!res.ok) {
-        output.value = data.detail || "Ошибка: " + res.status;
+        setOutput(data.detail || "Ошибка: " + res.status);
         return;
       }
 
-      output.value = data.text ?? JSON.stringify(data, null, 2);
+      setOutput(data.text ?? JSON.stringify(data, null, 2));
     } catch (e) {
-      output.value = "Ошибка запроса.";
+      setOutput("Ошибка запроса.");
     }
   });
 </script>

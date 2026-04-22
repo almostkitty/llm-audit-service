@@ -29,14 +29,6 @@
     line-height: 1.2;
   }
   .score-summary__value.is-muted { color: var(--muted); font-size: 1rem; font-weight: 500; }
-  .score-summary__hint {
-    display: block;
-    font-size: 0.82rem;
-    color: var(--muted);
-    margin-top: 0.35rem;
-    max-width: 22rem;
-    line-height: 1.4;
-  }
   .score-summary__dl {
     margin: 0;
     flex: 1;
@@ -79,13 +71,6 @@
   .api-json-details pre { margin-top: 0; }
   .metric-viz-section { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
   .metric-viz-section h3 { margin-top: 0; }
-  .metric-viz-lead {
-    font-size: 0.88rem;
-    color: var(--muted);
-    margin: 0 0 0.75rem;
-    max-width: 42rem;
-    line-height: 1.45;
-  }
   .metric-viz-panel {
     margin: 0;
     border-radius: 10px;
@@ -185,10 +170,6 @@
 
   <section id="metricVizSection" class="metric-viz-section" hidden>
     <h3>Сравнение с эталоном</h3>
-    <p class="metric-viz-lead">
-      Корпус human (<code>dataset_human.csv</code>): синяя область — плотность N(μ,σ²), оранжевая линия — ваш текст.
-      Рисуется в браузере (SVG), без unicode и перплексии; эталон — статический JSON.
-    </p>
     <div class="metric-viz-panel">
       <div id="metricVizGrid" class="metric-viz-grid" aria-live="polite"></div>
     </div>
@@ -225,6 +206,18 @@
   const metricChartErr = document.getElementById("metricChartErr");
   let baselinesPayloadPromise = null;
 
+  function resetMetricChartError() {
+    if (!metricChartErr) return;
+    metricChartErr.hidden = true;
+    metricChartErr.textContent = "";
+  }
+
+  function showMetricChartError(message) {
+    if (!metricChartErr) return;
+    metricChartErr.textContent = message;
+    metricChartErr.hidden = false;
+  }
+
   function loadBaselinesPayload() {
     if (!baselinesPayloadPromise) {
       baselinesPayloadPromise = fetch("/static/data/metric_baselines_human.json").then((r) => {
@@ -237,51 +230,41 @@
 
   function clearMetricCharts() {
     if (metricVizGrid) metricVizGrid.innerHTML = "";
-    if (metricChartErr) {
-      metricChartErr.hidden = true;
-      metricChartErr.textContent = "";
-    }
+    resetMetricChartError();
     if (metricVizSection) metricVizSection.hidden = true;
   }
 
   async function renderMetricCharts(data) {
     if (!metricVizSection || !metricVizGrid || !window.MetricVizSvg) return;
-    if (metricChartErr) {
-      metricChartErr.hidden = true;
-      metricChartErr.textContent = "";
-    }
+    resetMetricChartError();
     metricVizGrid.innerHTML = "";
     metricVizSection.hidden = false;
     try {
       const payload = await loadBaselinesPayload();
       window.MetricVizSvg.render(metricVizGrid, payload, data.metrics || {});
     } catch (_e) {
-      if (metricChartErr) {
-        metricChartErr.textContent =
-          "Не удалось загрузить эталон. Проверьте наличие /static/data/metric_baselines_human.json.";
-        metricChartErr.hidden = false;
-      }
+      showMetricChartError(
+        "Не удалось загрузить эталон. Проверьте наличие /static/data/metric_baselines_human.json."
+      );
     }
   }
 
-  function setScoreLoading() {
-    scoreProbability.textContent = "…";
+  function setScorePlaceholders(mark) {
+    scoreProbability.textContent = mark;
     scoreProbability.classList.add("is-muted");
-    scoreModeLine.textContent = "…";
-    scorePerplexityLine.textContent = "…";
-    scoreUnicodeLine.textContent = "…";
+    scoreModeLine.textContent = mark;
+    scorePerplexityLine.textContent = mark;
+    scoreUnicodeLine.textContent = mark;
     scoreDisclaimer.textContent = "";
     clearMetricCharts();
   }
 
+  function setScoreLoading() {
+    setScorePlaceholders("…");
+  }
+
   function setScoreEmpty() {
-    scoreProbability.textContent = "—";
-    scoreProbability.classList.add("is-muted");
-    scoreModeLine.textContent = "—";
-    scorePerplexityLine.textContent = "—";
-    scoreUnicodeLine.textContent = "—";
-    scoreDisclaimer.textContent = "";
-    clearMetricCharts();
+    setScorePlaceholders("—");
   }
 
   function renderScoreSummary(data) {
@@ -359,6 +342,13 @@
     }
   });
 
+  function makeTextFormData(text) {
+    const formData = new FormData();
+    const file = new File([text], "input.txt", { type: "text/plain" });
+    formData.append("file", file);
+    return formData;
+  }
+
   async function runAudit() {
     const text = textarea.value.trim();
 
@@ -372,13 +362,9 @@
     setScoreLoading();
 
     try {
-      const formData = new FormData();
-      const file = new File([text], "input.txt", { type: "text/plain" });
-      formData.append("file", file);
-
       const response = await fetch("/audit", {
         method: "POST",
-        body: formData
+        body: makeTextFormData(text),
       });
 
       if (!response.ok) {
