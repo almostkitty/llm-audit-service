@@ -77,6 +77,54 @@
   }
   .api-json-details summary:hover { color: var(--text); }
   .api-json-details pre { margin-top: 0; }
+  .metric-viz-section { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  .metric-viz-section h3 { margin-top: 0; }
+  .metric-viz-lead {
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin: 0 0 0.75rem;
+    max-width: 42rem;
+    line-height: 1.45;
+  }
+  .metric-viz-panel {
+    margin: 0;
+    border-radius: 10px;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  }
+  .metric-viz-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem 1rem;
+  }
+  @media (max-width: 640px) {
+    .metric-viz-grid { grid-template-columns: 1fr; }
+  }
+  .metric-viz-cell {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.45rem 0.55rem 0.5rem;
+    background: var(--surface);
+  }
+  .metric-viz-cell__title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 0 0 0.3rem;
+    line-height: 1.25;
+  }
+  .metric-viz-cell__svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .metric-viz-err {
+    font-size: 0.88rem;
+    color: #b91c1c;
+    margin: 0.35rem 0 0;
+  }
 </style>
 {% endblock %}
 {% block content %}
@@ -135,6 +183,18 @@
     <p id="scoreDisclaimer" class="hint"></p>
   </section>
 
+  <section id="metricVizSection" class="metric-viz-section" hidden>
+    <h3>Сравнение с эталоном</h3>
+    <p class="metric-viz-lead">
+      Корпус human (<code>dataset_human.csv</code>): синяя область — плотность N(μ,σ²), оранжевая линия — ваш текст.
+      Рисуется в браузере (SVG), без unicode и перплексии; эталон — статический JSON.
+    </p>
+    <div class="metric-viz-panel">
+      <div id="metricVizGrid" class="metric-viz-grid" aria-live="polite"></div>
+    </div>
+    <p id="metricChartErr" class="metric-viz-err" hidden></p>
+  </section>
+
   <details class="api-json-details">
     <summary>Полный ответ API (JSON)</summary>
     <pre id="result">Пока нет данных</pre>
@@ -142,6 +202,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script src="/static/js/metric_charts_svg.js"></script>
 <script>
   const MODE_LABELS = {
     catboost: "Обученная модель CatBoost.",
@@ -159,6 +220,49 @@
   const scorePerplexityLine = document.getElementById("scorePerplexityLine");
   const scoreUnicodeLine = document.getElementById("scoreUnicodeLine");
   const scoreDisclaimer = document.getElementById("scoreDisclaimer");
+  const metricVizSection = document.getElementById("metricVizSection");
+  const metricVizGrid = document.getElementById("metricVizGrid");
+  const metricChartErr = document.getElementById("metricChartErr");
+  let baselinesPayloadPromise = null;
+
+  function loadBaselinesPayload() {
+    if (!baselinesPayloadPromise) {
+      baselinesPayloadPromise = fetch("/static/data/metric_baselines_human.json").then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      });
+    }
+    return baselinesPayloadPromise;
+  }
+
+  function clearMetricCharts() {
+    if (metricVizGrid) metricVizGrid.innerHTML = "";
+    if (metricChartErr) {
+      metricChartErr.hidden = true;
+      metricChartErr.textContent = "";
+    }
+    if (metricVizSection) metricVizSection.hidden = true;
+  }
+
+  async function renderMetricCharts(data) {
+    if (!metricVizSection || !metricVizGrid || !window.MetricVizSvg) return;
+    if (metricChartErr) {
+      metricChartErr.hidden = true;
+      metricChartErr.textContent = "";
+    }
+    metricVizGrid.innerHTML = "";
+    metricVizSection.hidden = false;
+    try {
+      const payload = await loadBaselinesPayload();
+      window.MetricVizSvg.render(metricVizGrid, payload, data.metrics || {});
+    } catch (_e) {
+      if (metricChartErr) {
+        metricChartErr.textContent =
+          "Не удалось загрузить эталон. Проверьте наличие /static/data/metric_baselines_human.json.";
+        metricChartErr.hidden = false;
+      }
+    }
+  }
 
   function setScoreLoading() {
     scoreProbability.textContent = "…";
@@ -167,6 +271,7 @@
     scorePerplexityLine.textContent = "…";
     scoreUnicodeLine.textContent = "…";
     scoreDisclaimer.textContent = "";
+    clearMetricCharts();
   }
 
   function setScoreEmpty() {
@@ -176,6 +281,7 @@
     scorePerplexityLine.textContent = "—";
     scoreUnicodeLine.textContent = "—";
     scoreDisclaimer.textContent = "";
+    clearMetricCharts();
   }
 
   function renderScoreSummary(data) {
@@ -285,6 +391,7 @@
       result.textContent = JSON.stringify(data, null, 2);
 
       renderScoreSummary(data);
+      renderMetricCharts(data);
     } catch (error) {
       result.textContent = "Ошибка запроса к API.";
       setScoreEmpty();
