@@ -2,7 +2,7 @@
 Инференс CatBoost для ``llm_probability`` в веб-сервисе.
 
 Включение: ``ENABLE_CATBOOST=1`` и файл модели (см. ``CATBOOST_MODEL_PATH``).
-Порядок признаков — из ``inference.json`` рядом с ``.cbm`` (пишет ``extra/catboost/train.py``),
+Порядок признаков — из ``inference.json`` рядом с ``.cbm`` (пишет ``ml/catboost/train.py``),
 иначе из ``metrics.json``.
 """
 
@@ -23,7 +23,7 @@ def _project_root() -> Path:
 
 
 def _default_model_path() -> Path:
-    return _project_root() / "extra/catboost/model.cbm"
+    return _project_root() / "ml/catboost/model.cbm"
 
 
 def _resolve_model_path() -> Path | None:

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "generated_at": "2026-04-22T01:02:48.839173+00:00",
+  "source": {
+    "path": "extra/dataset_human.csv",
+    "rows_in_file": 208
+  },
+  "description": "Параметры для визуализации: для непрерывных метрик — μ и σ по выборке human; unicode — бинарный признак (μ = доля единиц). Пустая перплексия в CSV исключается из n.",
+  "metrics": {
+    "unicode": {
+      "label_ru": "Unicode 0/1",
+      "distribution": "bernoulli",
+      "n": 208,
+      "mean": 0.1201923076923077,
+      "std": 0.3259708080028197,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "lexical_diversity": {
+      "label_ru": "Лексическое разнообразие",
+      "distribution": "normal",
+      "n": 208,
+      "mean": 0.431374094952929,
+      "std": 0.06273400593351597,
+      "min": 0.2588334742180896,
+      "max": 0.699859747545582
+    },
+    "burstiness": {
+      "label_ru": "Burstiness",
+      "distribution": "normal",
+      "n": 208,
+      "mean": 4.126750267715863,
+      "std": 0.5491605616836565,
+      "min": 3.474054296467491,
+      "max": 7.084761575000697
+    },
+    "average_sentence_length": {
+      "label_ru": "Средняя длина предложения",
+      "distribution": "normal",
+      "n": 208,
+      "mean": 13.61434658298744,
+      "std": 3.0644668496490475,
+      "min": 5.87866927592955,
+      "max": 22.69736842105263
+    },
+    "text_entropy": {
+      "label_ru": "Энтропия текста",
+      "distribution": "normal",
+      "n": 208,
+      "mean": 9.849606812585158,
+      "std": 0.3608723362944668,
+      "min": 8.447333373296196,
+      "max": 10.542618154651048
+    },
+    "stop_word_ratio": {
+      "label_ru": "Доля стоп-слов",
+      "distribution": "normal",
+      "n": 208,
+      "mean": 0.18933054183454223,
+      "std": 0.01752491379724493,
+      "min": 0.1306755260243632,
+      "max": 0.2376811594202898
+    },
+    "word_length_variation": {
+      "label_ru": "Вариация длины слов",
+      "distribution": "normal",
+      "n": 208,
+      "mean": 3.6457523324249754,
+      "std": 0.21232227466843512,
+      "min": 3.236017126220841,
+      "max": 5.145388580815198
+    },
+    "punctuation_ratio": {
+      "label_ru": "Доля пунктуации",
+      "distribution": "normal",
+      "n": 208,
+      "mean": 0.027685874723895835,
+      "std": 0.004863788092166687,
+      "min": 0.0192261411343155,
+      "max": 0.048259030263586
+    },
+    "repetition_score": {
+      "label_ru": "Повторяемость",
+      "distribution": "normal",
+      "n": 208,
+      "mean": 0.13453422494163073,
+      "std": 0.05779962573344855,
+      "min": 0.0195978330576838,
+      "max": 0.4213464089410262
+    },
+    "perplexity": {
+      "label_ru": "Перплексия",
+      "distribution": "empty",
+      "n": 0,
+      "mean": null,
+      "std": null,
+      "min": null,
+      "max": null
+    }
+  }
+}

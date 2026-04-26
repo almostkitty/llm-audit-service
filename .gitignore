@@ -176,15 +176,16 @@ cython_debug/
 .DS_Store
 
 diploma.md
-data/
-scripts/
 catboost_info/
 
 # Offline experiment/training artifacts (not required for runtime)
-extra/manifest.csv
-extra/manifest_llm.csv
-extra/manifest_summary.csv
-extra/manifest_llm_summary.csv
-extra/dataset_human.csv
-extra/dataset_llm.csv
-extra/catboost/dataset_train.csv
+ml/manifest.csv
+ml/manifest_llm.csv
+ml/manifest_summary.csv
+ml/manifest_llm_summary.csv
+ml/dataset_human.csv
+ml/dataset_llm.csv
+ml/catboost/dataset_train.csv
+data/logs.csv
+data/app.db
+data/main-domain
