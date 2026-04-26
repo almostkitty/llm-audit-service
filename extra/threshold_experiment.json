@@ -1,0 +1,130 @@
+{
+  "n_samples": 24,
+  "n_human": 12,
+  "n_llm": 12,
+  "features": [
+    "unicode",
+    "lexical_diversity",
+    "burstiness",
+    "average_sentence_length",
+    "text_entropy",
+    "stop_word_ratio",
+    "word_length_variation",
+    "punctuation_ratio",
+    "repetition_score",
+    "perplexity"
+  ],
+  "logistic_regression": {
+    "intercept": -0.01773253497909521,
+    "coefficients": [
+      {
+        "feature": "unicode",
+        "coef_scaled_space": -0.6874026151873704,
+        "approx_effect_per_1_unit_raw": -1.5874883396803243,
+        "scaler_mean": 0.25,
+        "scaler_scale": 0.4330127018922193
+      },
+      {
+        "feature": "lexical_diversity",
+        "coef_scaled_space": 0.8349726875869576,
+        "approx_effect_per_1_unit_raw": 11.974454910967264,
+        "scaler_mean": 0.5332127707121667,
+        "scaler_scale": 0.06972949447763303
+      },
+      {
+        "feature": "burstiness",
+        "coef_scaled_space": 0.0005974858533529337,
+        "approx_effect_per_1_unit_raw": 0.002450625207304204,
+        "scaler_mean": 3.9945149983178196,
+        "scaler_scale": 0.24380955993274653
+      },
+      {
+        "feature": "average_sentence_length",
+        "coef_scaled_space": 0.14543717624687488,
+        "approx_effect_per_1_unit_raw": 0.06439506885094144,
+        "scaler_mean": 15.054537942090533,
+        "scaler_scale": 2.2585141819403245
+      },
+      {
+        "feature": "text_entropy",
+        "coef_scaled_space": -0.12010288938969628,
+        "approx_effect_per_1_unit_raw": -0.442768587343066,
+        "scaler_mean": 9.685355187704763,
+        "scaler_scale": 0.27125431393044636
+      },
+      {
+        "feature": "stop_word_ratio",
+        "coef_scaled_space": -0.24108649921073558,
+        "approx_effect_per_1_unit_raw": -19.401863011246856,
+        "scaler_mean": 0.19014122427726013,
+        "scaler_scale": 0.012425945852260823
+      },
+      {
+        "feature": "word_length_variation",
+        "coef_scaled_space": 1.1793250356972607,
+        "approx_effect_per_1_unit_raw": 6.770684025434815,
+        "scaler_mean": 3.6954416620943995,
+        "scaler_scale": 0.17418107701777208
+      },
+      {
+        "feature": "punctuation_ratio",
+        "coef_scaled_space": 0.07243671774680426,
+        "approx_effect_per_1_unit_raw": 24.115423297942186,
+        "scaler_mean": 0.025174946643422232,
+        "scaler_scale": 0.0030037506226558925
+      },
+      {
+        "feature": "repetition_score",
+        "coef_scaled_space": -1.0655446628748904,
+        "approx_effect_per_1_unit_raw": -35.1722089037661,
+        "scaler_mean": 0.06928563944707512,
+        "scaler_scale": 0.030295073755256703
+      },
+      {
+        "feature": "perplexity",
+        "coef_scaled_space": -0.1470221916001374,
+        "approx_effect_per_1_unit_raw": -0.03728049349958221,
+        "scaler_mean": 21.21681348482768,
+        "scaler_scale": 3.943676110451302
+      }
+    ],
+    "train_accuracy_full_sample": 1.0,
+    "train_balanced_accuracy_full_sample": 1.0,
+    "confusion_matrix_train_rows_human_llm": [
+      [
+        12,
+        0
+      ],
+      [
+        0,
+        12
+      ]
+    ],
+    "loocv": {
+      "accuracy": 0.7916666666666666,
+      "balanced_accuracy": 0.7916666666666666,
+      "roc_auc": 0.9513888888888888
+    }
+  },
+  "perplexity_threshold": {
+    "correlation_ppl_label": 0.42730441820294196,
+    "higher_perplexity_associated_with_llm": true,
+    "grid_min": 13.235980987548828,
+    "grid_max": 27.7370662689209,
+    "best_threshold": 17.170948852845772,
+    "youden_j_on_full_sample": 0.41666666666666674,
+    "accuracy_at_best_threshold_full_sample": 0.7083333333333334,
+    "confusion_matrix_rows_human_llm": [
+      [
+        5,
+        7
+      ],
+      [
+        0,
+        12
+      ]
+    ],
+    "loocv_accuracy_train_threshold_each_fold": 0.6666666666666666,
+    "note": "Порог по полной выборке завышает качество; LOOCV по одному признаку честнее. n=24 — выводы только пилотные."
+  }
+}

@@ -60,6 +60,9 @@
   .api-json-details {
     margin-top: 0.75rem;
   }
+  .report-actions {
+    margin-top: 0.75rem;
+  }
   .api-json-details summary {
     cursor: pointer;
     font-weight: 500;
@@ -180,6 +183,9 @@
     <summary>Полный ответ API (JSON)</summary>
     <pre id="result">Пока нет данных</pre>
   </details>
+  <p class="report-actions">
+    <button id="loadLastReportBtn" type="button" class="btn-secondary">Показать последний отчёт</button>
+  </p>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -192,6 +198,7 @@
   };
 
   const analyzeBtn = document.getElementById("analyzeBtn");
+  const loadLastReportBtn = document.getElementById("loadLastReportBtn");
   const fileInput = document.getElementById("fileInput");
   const fileStatus = document.getElementById("fileStatus");
   const textarea = document.getElementById("inputText");
@@ -323,7 +330,7 @@
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch("/extract", { method: "POST", body: formData });
-      const data = await res.json().catch(() => ({}));
+      const data = await parseJsonOrEmpty(res);
       if (!res.ok) {
         fileStatus.textContent = data.detail || "Ошибка извлечения: " + res.status;
         return;
@@ -349,16 +356,38 @@
     return formData;
   }
 
+  async function parseJsonOrEmpty(res) {
+    return res.json().catch(() => ({}));
+  }
+
+  function setResultText(text) {
+    result.textContent = text;
+  }
+
+  function downloadJson(filename, data) {
+    const pretty = JSON.stringify(data, null, 2);
+    const blob = new Blob([pretty], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    return pretty;
+  }
+
   async function runAudit() {
     const text = textarea.value.trim();
 
     if (!text) {
-      result.textContent = "Введите текст или выберите файл выше.";
+      setResultText("Введите текст или выберите файл выше.");
       setScoreEmpty();
       return;
     }
 
-    result.textContent = "Считаем...";
+    setResultText("Считаем...");
     setScoreLoading();
 
     try {
@@ -368,22 +397,37 @@
       });
 
       if (!response.ok) {
-        result.textContent = `Ошибка: ${response.status}`;
+        setResultText(`Ошибка: ${response.status}`);
         setScoreEmpty();
         return;
       }
 
       const data = await response.json();
-      result.textContent = JSON.stringify(data, null, 2);
+      setResultText(JSON.stringify(data, null, 2));
 
       renderScoreSummary(data);
       renderMetricCharts(data);
     } catch (error) {
-      result.textContent = "Ошибка запроса к API.";
+      setResultText("Ошибка запроса к API.");
       setScoreEmpty();
     }
   }
 
   analyzeBtn.addEventListener("click", () => runAudit());
+
+  loadLastReportBtn.addEventListener("click", async () => {
+    setResultText("Готовим файл отчёта...");
+    try {
+      const response = await fetch("/api/reports/last");
+      const data = await parseJsonOrEmpty(response);
+      if (!response.ok) {
+        setResultText(data.detail || `Ошибка: ${response.status}`);
+        return;
+      }
+      setResultText(downloadJson("report-last.json", data));
+    } catch (_error) {
+      setResultText("Ошибка запроса к API.");
+    }
+  });
 </script>
 {% endblock %}

@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
-from app.api.routes import audit, auth, extract, health
+from app.api.routes import audit, auth, extract, reports
 from app.db.session import init_db
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
@@ -23,10 +23,10 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 if STATIC_DIR.is_dir():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(audit.router)
 app.include_router(extract.router)
+app.include_router(reports.router)
 
 
 @app.get("/")

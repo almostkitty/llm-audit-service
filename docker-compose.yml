@@ -1,0 +1,16 @@
+services:
+  llm-audit-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llm-audit-service
+    ports:
+      - "8000:8000"
+    environment:
+      JWT_SECRET: "${JWT_SECRET:XXXXXXXXXX}"
+      ENABLE_CATBOOST: "${ENABLE_CATBOOST:-1}"
+      CATBOOST_MODEL_PATH: "${CATBOOST_MODEL_PATH:-/app/extra/catboost/model.cbm}"
+      ENABLE_PERPLEXITY: "${ENABLE_PERPLEXITY:-0}"
+    volumes:
+      - ./extra/catboost:/app/extra/catboost:ro
+    restart: unless-stopped
