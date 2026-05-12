@@ -35,7 +35,7 @@ def analyze_text(text: str) -> dict:
     # Как в manifest: 0/1 по исходной строке (согласовано с пилотной логрегрессией).
     metrics["unicode"] = 1.0 if hidden_unicode.get("has_signals") else 0.0
 
-    # Возвращает (float, dict); не путать с compute_score — тот даёт только число без scoring.
+    # (float | None, dict): без CatBoost score будет None.
     score, scoring_meta = score_with_meta(metrics)
 
     return {

@@ -1,4 +1,4 @@
-"""Скоринг: baseline-эвристика и пилотная логрегрессия с метаданными."""
+"""Скоринг: CatBoost (см. ``catboost_runtime``)."""
 
 from app.services.scoring.aggregator import compute_score, score_with_meta
 

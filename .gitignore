@@ -179,13 +179,9 @@ diploma.md
 catboost_info/
 
 # Offline experiment/training artifacts (not required for runtime)
-ml/manifest.csv
-ml/manifest_llm.csv
-ml/manifest_summary.csv
-ml/manifest_llm_summary.csv
-ml/dataset_human.csv
-ml/dataset_llm.csv
-ml/catboost/dataset_train.csv
-data/logs.csv
+*.csv
 data/app.db
 data/main-domain
+data/
+artifacts/
+tools/

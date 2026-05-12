@@ -1,0 +1,44 @@
+{
+  "model.cbm": {
+    "name": "model.cbm",
+    "model_path": "ml/catboost/model.cbm",
+    "n": 145,
+    "roc_auc": 0.8872637263726373,
+    "threshold": 0.5,
+    "confusion_matrix": [
+      [
+        97,
+        4
+      ],
+      [
+        16,
+        28
+      ]
+    ],
+    "human_f1": 0.9065420560747663,
+    "llm_f1": 0.7368421052631579,
+    "llm_recall": 0.6363636363636364,
+    "human_fpr_approx": 0.039603960396039604
+  },
+  "model_aug.cbm": {
+    "name": "model_aug.cbm",
+    "model_path": "ml/catboost/model_aug.cbm",
+    "n": 145,
+    "roc_auc": 0.9554455445544554,
+    "threshold": 0.5,
+    "confusion_matrix": [
+      [
+        89,
+        12
+      ],
+      [
+        4,
+        40
+      ]
+    ],
+    "human_f1": 0.9175257731958762,
+    "llm_f1": 0.8333333333333334,
+    "llm_recall": 0.9090909090909091,
+    "human_fpr_approx": 0.1188118811881188
+  }
+}

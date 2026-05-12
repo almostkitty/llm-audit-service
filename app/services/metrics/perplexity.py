@@ -1,3 +1,11 @@
+"""
+Перплексия по произвольной causal LM из HuggingFace
+- ai-forever/rugpt3*_based_on_gpt2 — это **то же семейство decoder-only GPT-2**, дообученное
+  на русском; для русскоязычных ВКР это естественный базовый выбор.
+- ai-forever/mGPT — открытая мультиязычная модель в духе GPT-3 scale (~1.3B), хорошо понимает
+  русский; тяжелее по памяти и времени
+"""
+
 import math
 import os
 from functools import lru_cache
@@ -6,12 +14,23 @@ from functools import lru_cache
 DEFAULT_MODEL_NAME = "ai-forever/rugpt3small_based_on_gpt2"
 
 
-@lru_cache(maxsize=2)
-def _load_model_and_tokenizer(model_name: str):
-    """
-    Lazy-load HuggingFace model/tokenizer once per process.
-    Import is local to avoid hard dependency unless perplexity is enabled.
-    """
+def _dtype_env_key() -> str:
+    """Нормализованное значение PERPLEXITY_TORCH_DTYPE для ключа кэша загрузки."""
+    return (os.getenv("PERPLEXITY_TORCH_DTYPE") or "").strip().lower()
+
+
+def _torch_dtype_from_key(torch, key: str):
+    if key in ("float16", "fp16"):
+        return torch.float16
+    if key in ("bfloat16", "bf16"):
+        return torch.bfloat16
+    if key in ("float32", "fp32"):
+        return torch.float32
+    return None
+
+
+@lru_cache(maxsize=8)
+def _load_model_and_tokenizer(model_name: str, dtype_key: str):
     try:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -25,7 +44,11 @@ def _load_model_and_tokenizer(model_name: str):
     # Длинные ВКР: полный текст кодируем в ids целиком, а в модель подаём только окна ≤ n_positions.
     # Иначе tokenizer предупреждает «sequence length … > max» (7939 > 2048), хотя forward идёт по слайсам.
     tokenizer.model_max_length = 1_000_000
-    model = AutoModelForCausalLM.from_pretrained(model_name)
+    td = _torch_dtype_from_key(torch, dtype_key)
+    load_kw = {}
+    if td is not None:
+        load_kw["torch_dtype"] = td
+    model = AutoModelForCausalLM.from_pretrained(model_name, **load_kw)
     model.eval()
 
     device = _resolve_torch_device(torch)
@@ -34,10 +57,6 @@ def _load_model_and_tokenizer(model_name: str):
 
 
 def _resolve_torch_device(torch) -> str:
-    """
-    cuda → Apple MPS → cpu. Переопределение: ``PERPLEXITY_DEVICE=cuda|mps|cpu``.
-    На Apple Silicon M2 ``mps`` обычно быстрее, чем чистый CPU (если PyTorch собран с MPS).
-    """
     forced = (os.getenv("PERPLEXITY_DEVICE") or "").strip().lower()
     if forced in ("cuda", "mps", "cpu"):
         return forced
@@ -48,24 +67,30 @@ def _resolve_torch_device(torch) -> str:
     return "cpu"
 
 
+def _positive_int_env(name: str, default: int) -> int:
+    raw = (os.getenv(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        v = int(raw)
+    except ValueError:
+        return default
+    return max(1, v)
+
+
 def perplexity(
     text: str,
     *,
     model_name: str | None = None,
     stride: int = 512,
 ) -> float:
-    """
-    Compute causal language model perplexity for input text.
-
-    Notes:
-    - Uses sliding-window evaluation for texts longer than model context length.
-    - Returns 0.0 for empty/whitespace-only text.
-    """
     if not text or not text.strip():
         return 0.0
 
     model_name = model_name or os.getenv("PERPLEXITY_MODEL_NAME", DEFAULT_MODEL_NAME)
-    model, tokenizer, device, torch = _load_model_and_tokenizer(model_name)
+    model, tokenizer, device, torch = _load_model_and_tokenizer(
+        model_name, _dtype_env_key()
+    )
 
     ids = tokenizer.encode(text, add_special_tokens=False)
     seq_len = len(ids)
@@ -75,10 +100,18 @@ def perplexity(
         getattr(model.config, "n_positions", None)
         or getattr(model.config, "max_position_embeddings", 1024)
     )
+    forward_cap = _positive_int_env("PERPLEXITY_MAX_FORWARD_TOKENS", 0)
+    if forward_cap > 0:
+        max_len = min(max_len, forward_cap)
+
+    stride_use = _positive_int_env("PERPLEXITY_STRIDE", stride)
+    # при ограничении окна шаг не должен превышать его иначе пропускаются позиции
+    stride_use = min(stride_use, max_len)
+
     nlls = []
     prev_end = 0
 
-    for begin in range(0, seq_len, stride):
+    for begin in range(0, seq_len, stride_use):
         end = min(begin + max_len, seq_len)
         trg_len = end - prev_end
         input_slice = input_ids[:, begin:end]
@@ -91,6 +124,11 @@ def perplexity(
             neg_log_likelihood = outputs.loss * trg_len
 
         nlls.append(neg_log_likelihood)
+        if device == "mps":
+            try:
+                torch.mps.empty_cache()
+            except AttributeError:
+                pass
         prev_end = end
         if end == seq_len:
             break

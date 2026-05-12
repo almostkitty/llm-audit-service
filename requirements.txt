@@ -12,7 +12,6 @@ python-multipart
 pymupdf4llm
 striprtf
 odfpy
-razdel
 pandas
 scikit-learn
 catboost

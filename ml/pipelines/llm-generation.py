@@ -33,7 +33,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib import error, request
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ENV_PATH = PROJECT_ROOT / ".env"
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 
@@ -231,11 +231,14 @@ def deepseek_generate_until_complete(
 
 
 def ensure_llm_works_table(conn: sqlite3.Connection) -> None:
+    # Исторически таблица создавалась с UNIQUE(work_id), из-за чего повторная генерация
+    # с другой temperature перезаписывала старую запись. Здесь поддерживаем "append-only":
+    # один work_id может иметь несколько LLM-версий.
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS llm_works (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            work_id TEXT NOT NULL UNIQUE,
+            work_id TEXT NOT NULL,
             title TEXT NOT NULL,
             abstract TEXT NOT NULL,
             generated_text TEXT NOT NULL,
@@ -246,6 +249,45 @@ def ensure_llm_works_table(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    # Миграция старой схемы (UNIQUE(work_id)) -> новая (без UNIQUE).
+    # В sqlite автоиндексы для UNIQUE часто имеют sql = NULL, поэтому проверяем через PRAGMA.
+    has_unique_work_id = False
+    for _, idx_name, is_unique, *_ in conn.execute("PRAGMA index_list('llm_works')"):
+        if int(is_unique) != 1:
+            continue
+        cols = [row[2] for row in conn.execute(f"PRAGMA index_info('{idx_name}')")]
+        if cols == ["work_id"]:
+            has_unique_work_id = True
+            break
+    if has_unique_work_id:
+        conn.execute("DROP TABLE IF EXISTS llm_works_v2")
+        conn.execute(
+            """
+            CREATE TABLE llm_works_v2 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                abstract TEXT NOT NULL,
+                generated_text TEXT NOT NULL,
+                model TEXT NOT NULL,
+                temperature REAL NOT NULL,
+                max_tokens INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO llm_works_v2 (
+                work_id, title, abstract, generated_text, model, temperature, max_tokens, created_at
+            )
+            SELECT work_id, title, abstract, generated_text, model, temperature, max_tokens, created_at
+            FROM llm_works
+            ORDER BY id
+            """
+        )
+        conn.execute("DROP TABLE llm_works")
+        conn.execute("ALTER TABLE llm_works_v2 RENAME TO llm_works")
     conn.commit()
 
 
@@ -261,20 +303,14 @@ def upsert_llm_work(
     max_tokens: int,
     created_at: str,
 ) -> None:
+    # Специально без upsert: одинаковый work_id с разной temperature должен храниться
+    # отдельными строками для расширения датасета.
     conn.execute(
         """
         INSERT INTO llm_works (
             work_id, title, abstract, generated_text,
             model, temperature, max_tokens, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(work_id) DO UPDATE SET
-            title = excluded.title,
-            abstract = excluded.abstract,
-            generated_text = excluded.generated_text,
-            model = excluded.model,
-            temperature = excluded.temperature,
-            max_tokens = excluded.max_tokens,
-            created_at = excluded.created_at
         """,
         (
             work_id,
