@@ -185,3 +185,8 @@ data/main-domain
 data/
 artifacts/
 tools/
+
+# Локальные эксперименты / генерация (не рантайм сервиса)
+ml/notebooks/
+ml/pipelines/
+diagrams.md

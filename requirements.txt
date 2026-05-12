@@ -13,9 +13,4 @@ pymupdf4llm
 striprtf
 odfpy
 pandas
-scikit-learn
 catboost
-plotly
-kaleido
-transformers
-torch
