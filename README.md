@@ -1,155 +1,95 @@
 # llm-audit-service
 
-Сервис аудита использования генеративных языковых моделей для профессиональных текстов.
 
-## Статус проекта
+## Возможности
 
-MVP дипломного проекта: FastAPI-сервис для анализа текста (метрики, hidden Unicode-сигналы и оценка `llm_probability`), извлечения текста из документов, базовой аутентификации и просмотра/выгрузки отчёта проверки (`demo`/`last`).
+| Маршрут | Назначение |
+|--------|------------|
+| `POST /audit` | `multipart/form-data`, поле `file` — **UTF-8 текст**; ответ: `metrics`, `hidden_unicode`, `llm_probability`, `scoring` |
+| `POST /extract` | Загрузка `.pdf`, `.docx`, `.rtf`, `.odt` или текстового файла; ответ `{"text": "..."}` |
+| `GET /demo`, `GET /extract`, `GET /info` | HTML-интерфейсы |
+| `GET /login`, `GET /register`, `GET /account` | Страницы входа и профиля |
+| `GET /api/reports`, `GET /api/reports/{id}` | Список отчётов (`demo`, опционально `last` после вызова `/audit`) |
+| `POST /api/auth/register`, `POST /api/auth/login`, … | Регистрация и JWT (см. `/docs`) |
 
-## Что уже реализовано
+Числовые метрики считаются по строке после `clean_text` (`app/services/preprocessing/cleaner.py`). `hidden_unicode` — по **исходной** строке до очистки. CatBoost: `ENABLE_CATBOOST=1`, файл `ml/catboost/model.cbm`.
 
-- FastAPI, точка входа `app/main.py`
-- **`POST /audit`** — загрузка **текстового** файла (UTF-8), возврат метрик, `hidden_unicode` и `llm_probability`
-- **`POST /extract`** — загрузка **PDF, DOCX, RTF, ODT или .txt**; ответ `{"text": "..."}`
-- **`GET /api/reports`** — список доступных отчётов (`demo`, `last`)
-- **`GET /api/reports/{report_id}`** — получение отчёта (`demo` или `last`)
-- **`GET /demo`** — `templates/demo.html`: вставка текста --> запрос к `/audit`, краткая сводка по Unicode-сигналам и полный JSON
-- **`GET /extract`** — `templates/extract.html` (файл --> запрос к `/extract`)
-- Препроцессинг: lower-case, нормализация пробелов (`preprocessing/cleaner.py`); он применяется после подсчёта `hidden_unicode`, чтобы не съедать неразрывные и узкие пробелы
-- Числовые метрики считаются по тексту после `clean_text` и попадают в `metrics` ответа **`/audit`**
-- **`hidden_unicode`**: эвристика по невидимым символам, bidi-маркерам и литералам `\$` / `\~` — `metrics/hidden_unicode.py`, считается по **исходной** строке
-- **`llm_probability`**: в `scoring/aggregator.py` — только **CatBoost** при **`ENABLE_CATBOOST=1`** и наличии файла модели **`ml/catboost/model.cbm`** (рядом — `inference.json` или `metrics.json` с `feature_names`). Если CatBoost недоступен, в ответе будет **`llm_probability`: `null`**, в **`scoring.mode`** — **`unavailable`**
-- Извлечение текста:
-  - **PDF** — `pymupdf4llm` (`pdf_reader.py`)
-  - **DOCX** — `python-docx` (`docx_reader.py`)
-  - **RTF** — `striprtf` (`rtf_reader.py`)
-  - **ODT** — `odfpy` (`odt_reader.py`)
+Извлечение: PDF — `pymupdf4llm`, DOCX — `python-docx`, RTF — `striprtf`, ODT — `odfpy`.
 
-## Текущие ограничения MVP
 
-- **`/audit`** принимает только содержимое как **UTF-8 текст** в поле `file`;
-- Бинарный **`.doc`** (Word 97–2003) **не поддерживается**;
-- Роут `reports` пока минималистичный;
-- Скоринг: только CatBoost; без модели или при `ENABLE_CATBOOST=0` итоговый скор не считается (`llm_probability`: `null`). Обобщение на произвольные тексты требует расширенной калибровки
-
-## Структура проекта
+## Структура `app/`
 
 ```text
 app/
-  main.py                         # FastAPI, GET /, /demo, /extract, /info, /login, /register, /account
-  api/routes/
-    audit.py                      # POST /audit
-    extract.py                    # POST /extract
-    auth.py                       # /api/auth/*
-    reports.py                    # /api/reports/*
-  templates/
-    demo.html                     # UI: анализ вставленного текста
-    extract.html                  # UI: извлечение из документов
+  main.py                 # маршруты страниц, mount /static
+  api/routes/             # audit, extract, auth, reports
+  templates/              # demo, extract, info, login, register, account
   services/
-    analyzer.py                   # clean_text + метрики + hidden_unicode + CatBoost-скоринг
+    analyzer.py           # метрики + скоринг
     preprocessing/cleaner.py
-    metrics/
-      avg_lenght.py               # средняя длина предложения
-      burstiness.py               # burstiness (разброс длины слов)
-      hidden_unicode.py           # Unicode-сигналы (вне скоринга)
-      lenght_variation.py         # разнообразие длины слов
-      lexical_diversity.py        # лексическое разнообразие
-      perplexity.py               # перплексия (опционально, по ENABLE_PERPLEXITY=1)
-      punctuation_ratio.py        # доля знаков препинания
-      repetition_score.py         # повторяемость фраз
-      stop_word.py                # доля стоп-слов
-      text_entropy.py             # энтропия распределения слов
-    scoring/aggregator.py
-    ingestion/
-      pdf_reader.py               # pymupdf4llm
-      docx_reader.py              # DOCX
-      rtf_reader.py               # RTF
-      odt_reader.py               # ODT
+    metrics/              # lexical_diversity, burstiness, avg_lenght, …
+    scoring/              # aggregator, catboost_runtime
+    ingestion/            # pdf, docx, rtf, odt
+  db/                     # SQLModel, SQLite по умолчанию (data/app.db)
+  core/config.py          # DATABASE_URL, JWT_SECRET
 ```
-
-## Оффлайн-пайплайн и артефакты
-
-- `tools/thesis_dataset.py` — пайплайн обработки human-ВКР (очистка, нормализация, подготовка SQLite и txt)
-- `tools/build_thesis_dataset.py` — CLI-обертка для сборки и загрузки human-ВКР в БД
-- `ml/pipelines/llm-generation.py` — генерация LLM-ВКР на основе исходных данных через API DeepSeek
-- `tools/export_metrics_csv.py` — расчет метрик из БД и экспорт в CSV (`human` или `llm`)
-- `ml/dataset_human.csv` — датасет метрик по human-текстам
-- `ml/dataset_llm.csv` — датасет метрик по LLM-текстам
-- `tools/build_classification_dataset.py` — объединение `dataset_human.csv` и `dataset_llm.csv` в train-датасет
-- `ml/catboost/dataset_train.csv` — табличный датасет для обучения CatBoost
-- `tools/build_human_metric_baselines.py` — расчет baseline-данных для графиков на `/demo`
 
 ## Быстрый старт
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-## Запуск в Docker
+Открой `http://127.0.0.1:8000/docs` или `http://127.0.0.1:8000/demo`.
 
-Запуск через Docker Compose:
+## Docker
 
 ```bash
 docker compose up --build
-```
-
-Остановка:
-
-```bash
 docker compose down
 ```
 
-Сервис будет доступен по адресу:
 
-- `http://127.0.0.1:8000/demo`
-- `http://127.0.0.1:8000/docs`
+## Переменные окружения
 
+| Переменная | Назначение |
+|------------|------------|
+| `DATABASE_URL` | Если не задано — SQLite в `data/app.db` от корня проекта |
+| `JWT_SECRET` | Секрет подписи JWT (в продакшене задайте свой) |
+| `ENABLE_CATBOOST` | `1` — считать `llm_probability` через CatBoost |
+| `CATBOOST_MODEL_PATH` | Путь к `*.cbm`, иначе `ml/catboost/model.cbm` |
+| `ENABLE_PERPLEXITY` | `1` — добавить в `metrics` поле `perplexity` |
+| `PERPLEXITY_MODEL_NAME` и др. | См. комментарии в `app/services/metrics/perplexity.py` |
 
-Переменные окружения для **`/audit`** (скоринг):
-
-| Переменная | Значение |
-|------------|----------|
-| `ENABLE_CATBOOST` | `1` — использовать CatBoost (`CATBOOST_MODEL_PATH` или путь по умолчанию `ml/catboost/model.cbm`) |
-| `CATBOOST_MODEL_PATH` | Полный путь к `*.cbm`, если модель не в каталоге по умолчанию |
-| `ENABLE_PERPLEXITY` | `1` — считать перплексию в метриках |
-
-
-
-## API: POST /audit
-
-`multipart/form-data`, поле `file` — **текст в UTF-8** (например `.txt`).
-
-Пример:
+## Пример: `POST /audit`
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/audit" \
+curl -s -X POST "http://127.0.0.1:8000/audit" \
   -H "accept: application/json" \
-  -F "file=@sample.txt"
+  -F "file=@./README.md"
 ```
 
-Пример ответа:
 
 ```json
 {
   "metrics": {
-    "lexical_diversity": 0.5169109357384442,
-    "burstiness": 4.168206436059661,
-    "average_sentence_length": 13.859375,
-    "text_entropy": 9.060240121550303,
-    "stop_word_ratio": 0.16573348264277715,
-    "word_length_variation": 3.7789375941173824,
-    "punctuation_ratio": 0.01972127267946358,
-    "repetition_score": 0.10449623795706625,
-    "unicode": 0,
-    "perplexity": 19.5
+    "lexical_diversity": 0.51,
+    "burstiness": 4.17,
+    "average_sentence_length": 13.86,
+    "text_entropy": 9.06,
+    "stop_word_ratio": 0.17,
+    "word_length_variation": 3.78,
+    "punctuation_ratio": 0.02,
+    "repetition_score": 0.10,
+    "unicode": 0
   },
   "llm_probability": 0.42,
   "scoring": {
     "mode": "catboost",
-    "model_path": "ml/catboost/model.cbm",
+    "model_path": "/path/to/model.cbm",
     "disclaimer": "Число llm_probability — не вердикт о происхождении текста: результат нужно интерпретировать вместе с метриками и источником фрагмента."
   },
   "hidden_unicode": {
@@ -168,41 +108,3 @@ curl -X POST "http://127.0.0.1:8000/audit" \
   }
 }
 ```
-
-## API: POST /extract
-
-`multipart/form-data`, поле `file`:
-
-| Расширение | Обработка |
-|------------|-----------|
-| **`.pdf`** | pymupdf4llm |
-| **`.docx`** | python-docx |
-| **`.rtf`** | пакет `striprtf` |
-| **`.odt`** | пакет `odfpy` |
-| **`.txt`** / без расширения | UTF-8 |
-
-Ответ: `{"text": "извлечённый текст"}`.
-
-## Как интерпретировать результат анализа
-
-- **`llm_probability`** — оценка CatBoost (класс LLM): ближе к `1` — выше оценка LLM-паттерна; диапазон `[0, 1]`, либо **`null`**, если CatBoost недоступен (`scoring.mode` = `unavailable`).
-- **`hidden_unicode`** — отдельный сигнал: наличие подозрительных символов и экранирований. Интерпретировать в связке с источником текста.
-
----
-
-## Метрики в проекте
-### Базовые статистические метрики
-- [x] Лексическое разнообразие (lexical diversity). Файл lexical_diversity.py;
-- [x] Вариативность структуры текста (burstiness). Файл burstiness.py;
-- [x] Средняя длина предложений (average sentence length). Файл avg_lenght.py ;
-- [x] Энтропия текста (text entropy). Файл text_entropy.py;
-
-### LLM-ориентированные и смежные признаки
-- [x] Скрытые Unicode-сигналы (`hidden_unicode`). Файл `metrics/hidden_unicode.py`; в агрегатор скоринга не входит
-- [x] Перплексия (perplexity). Файл `metrics/perplexity.py`; включается флагом `ENABLE_PERPLEXITY=1` (опционально, из-за веса модели). Модель задаётся `PERPLEXITY_MODEL_NAME` (RuGPT = GPT‑2‑семейство на русском; см. комментарии в `perplexity.py`).
-- [x] Коэффициент повторений (repetition score). Файл `repetition_score.py`
-
-### Стилометрия
-- [x] Доля стоп-слов (stop-word ratio). Файл stop_word.py;
-- [x] Разнообразие длины слов (word lenght variation). Файл lenght_variation.py;
-- [x] Доля знаков препинания (punctuation ratio). Файл punctuation_ratio.py;
