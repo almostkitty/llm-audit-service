@@ -1,8 +1,0 @@
-# Поверх requirements.txt: обучение CatBoost (ml/catboost/train.py), ноутбуки,
-# опциональная перплексия в /audit (ENABLE_PERPLEXITY=1).
--r requirements.txt
-scikit-learn
-plotly
-kaleido
-torch
-transformers

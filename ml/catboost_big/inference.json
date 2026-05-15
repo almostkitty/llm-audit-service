@@ -1,0 +1,12 @@
+{
+  "feature_names": [
+    "lexical_diversity",
+    "burstiness",
+    "average_sentence_length",
+    "text_entropy",
+    "stop_word_ratio",
+    "word_length_variation",
+    "punctuation_ratio",
+    "repetition_score"
+  ]
+}

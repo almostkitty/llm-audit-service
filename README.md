@@ -12,7 +12,7 @@
 | `GET /api/reports`, `GET /api/reports/{id}` | Список отчётов (`demo`, опционально `last` после вызова `/audit`) |
 | `POST /api/auth/register`, `POST /api/auth/login`, … | Регистрация и JWT (см. `/docs`) |
 
-Числовые метрики считаются по строке после `clean_text` (`app/services/preprocessing/cleaner.py`). `hidden_unicode` — по **исходной** строке до очистки. CatBoost: `ENABLE_CATBOOST=1`, файл `ml/catboost/model.cbm`.
+Числовые метрики считаются по строке после `clean_text` (`app/services/preprocessing/cleaner.py`). `hidden_unicode` — по **исходной** строке до очистки. CatBoost: `ENABLE_CATBOOST=1`, файл `ml/catboost_big/catboost_model.cbm`.
 
 Извлечение: PDF — `pymupdf4llm`, DOCX — `python-docx`, RTF — `striprtf`, ODT — `odfpy`.
 
@@ -60,7 +60,7 @@ docker compose down
 | `DATABASE_URL` | Если не задано — SQLite в `data/app.db` от корня проекта |
 | `JWT_SECRET` | Секрет подписи JWT (в продакшене задайте свой) |
 | `ENABLE_CATBOOST` | `1` — считать `llm_probability` через CatBoost |
-| `CATBOOST_MODEL_PATH` | Путь к `*.cbm`, иначе `ml/catboost/model.cbm` |
+| `CATBOOST_MODEL_PATH` | Путь к `*.cbm`, иначе `ml/catboost_big/catboost_model.cbm` |
 | `ENABLE_PERPLEXITY` | `1` — добавить в `metrics` поле `perplexity` |
 | `PERPLEXITY_MODEL_NAME` и др. | См. комментарии в `app/services/metrics/perplexity.py` |
 

@@ -1,0 +1,22 @@
+{
+  "feature_names": [
+    "lexical_diversity",
+    "burstiness",
+    "average_sentence_length",
+    "text_entropy",
+    "stop_word_ratio",
+    "word_length_variation",
+    "punctuation_ratio",
+    "repetition_score"
+  ],
+  "drop_columns": [
+    "label",
+    "perplexity",
+    "unicode",
+    "work_id"
+  ],
+  "random_state": 42,
+  "best_iteration": 177,
+  "n_features": 8,
+  "note": "dataset_2.csv; new_2 thesis.db; 15% work_id groups for early stopping."
+}
