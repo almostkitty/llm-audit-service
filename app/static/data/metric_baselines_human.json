@@ -1,6 +1,7 @@
 {
   "version": 1,
   "generated_at": "2026-05-15T22:04:38.692865+00:00",
+  "reference_file": "metric_baselines_reference.json",
   "source": {
     "path": "ml/dataset_human_2.csv",
     "rows_in_file": 414

@@ -177,16 +177,17 @@ cython_debug/
 
 diploma.md
 catboost_info/
+app.db
+.coverage
 
-# Offline experiment/training artifacts (not required for runtime)
-*.csv
-data/app.db
-data/main-domain
+# Runtime / local data
 data/
+
+# Offline experiments (not required for the web service)
+archive/
+*.csv
+
+# Legacy paths (moved to archive/)
 artifacts/
 tools/
-
-# Локальные эксперименты / генерация (не рантайм сервиса)
-ml/notebooks/
-ml/pipelines/
-diagrams.md
+ml/

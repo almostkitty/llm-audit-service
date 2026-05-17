@@ -4,5 +4,10 @@ __pycache__/
 *.pyc
 .DS_Store
 catboost_info/
-ml/
+archive/
 data/
+app.db
+.coverage
+.pytest_cache/
+tests/
+docs/

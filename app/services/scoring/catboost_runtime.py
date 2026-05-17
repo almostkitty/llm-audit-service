@@ -25,7 +25,7 @@ def _project_root() -> Path:
 
 
 def _default_model_path() -> Path:
-    return _project_root() / "ml/catboost_big/catboost_model.cbm"
+    return _project_root() / "models/catboost/catboost_model.cbm"
 
 
 def _resolve_model_path() -> Path | None:

@@ -220,6 +220,7 @@
   </details>
   <p class="report-actions">
     <a id="openReportBtn" href="/report/last" class="btn btn-secondary" hidden>Открыть отчёт</a>
+    <button type="button" id="copyReportLinkBtn" class="btn btn-secondary" hidden>Скопировать ссылку на отчёт</button>
     <a href="/history" class="btn btn-secondary">История проверок</a>
   </p>
 </div>
@@ -236,6 +237,7 @@
   const analyzeBtn = document.getElementById("analyzeBtn");
   const pickFileBtn = document.getElementById("pickFileBtn");
   const openReportBtn = document.getElementById("openReportBtn");
+  const copyReportLinkBtn = document.getElementById("copyReportLinkBtn");
   let lastReportId = null;
   let currentUserRole = null;
   let teacherFeedbackCtl = null;
@@ -362,6 +364,7 @@
 
   function setScoreEmpty() {
     setScorePlaceholders("—");
+    if (copyReportLinkBtn) copyReportLinkBtn.hidden = true;
   }
 
   function renderScoreSummary(data) {
@@ -510,6 +513,9 @@
 
     setResultText("Считаем...");
     setScoreLoading();
+    lastReportId = null;
+    if (openReportBtn) openReportBtn.hidden = true;
+    if (copyReportLinkBtn) copyReportLinkBtn.hidden = true;
 
     if (!window.LlmAuditAuth.isLoggedIn()) {
       setResultText("Для проверки с сохранением отчёта войдите в аккаунт.");
@@ -547,6 +553,9 @@
           openReportBtn.hidden = true;
         }
       }
+      if (copyReportLinkBtn) {
+        copyReportLinkBtn.hidden = !lastReportId;
+      }
       renderScoreSummary(data);
       renderMetricCharts(data);
       if (teacherFeedbackCtl) teacherFeedbackCtl.refresh();
@@ -554,6 +563,13 @@
       setResultText("Ошибка запроса к API.");
       setScoreEmpty();
     }
+  }
+
+  if (copyReportLinkBtn) {
+    copyReportLinkBtn.addEventListener("click", function () {
+      if (!lastReportId || !window.LlmAuditApi || !window.LlmAuditApi.copyReportLink) return;
+      window.LlmAuditApi.copyReportLink(lastReportId);
+    });
   }
 
   teacherFeedbackCtl = window.LlmAuditTeacherFeedback.init({

@@ -6,7 +6,7 @@ from collections.abc import Generator
 
 from pathlib import Path
 
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.engine import make_url
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -20,6 +20,14 @@ if DATABASE_URL.startswith("sqlite"):
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
 
 engine = create_engine(DATABASE_URL, **_engine_kwargs)
+
+
+@event.listens_for(engine, "connect")
+def _sqlite_enable_foreign_keys(dbapi_connection, _connection_record) -> None:
+    if DATABASE_URL.startswith("sqlite"):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 def _sqlite_table_exists(conn, table: str) -> bool:
@@ -106,6 +114,28 @@ def _migrate_users_names_not_null(conn) -> None:
         _sqlite_rebuild_users_names_not_null(conn)
 
 
+def _migrate_audit_checks_user_required(conn) -> None:
+    """Удалить проверки без владельца; user_id обязателен для новых записей."""
+    if not _sqlite_table_exists(conn, "audit_checks"):
+        return
+    conn.execute(text("DELETE FROM teacher_audit_feedback WHERE audit_check_id IN (SELECT id FROM audit_checks WHERE user_id IS NULL)"))
+    conn.execute(text("DELETE FROM audit_checks WHERE user_id IS NULL"))
+    conn.commit()
+
+
+def _migrate_teacher_feedback_unique(conn) -> None:
+    """Один отзыв преподавателя на одну проверку (уникальный индекс)."""
+    if not _sqlite_table_exists(conn, "teacher_audit_feedback"):
+        return
+    conn.execute(
+        text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_teacher_feedback_check_teacher "
+            "ON teacher_audit_feedback (audit_check_id, teacher_id)"
+        )
+    )
+    conn.commit()
+
+
 def _migrate_sqlite_columns() -> None:
     """Добавить новые колонки в существующие SQLite-таблицы (create_all их не меняет)."""
     if not DATABASE_URL.startswith("sqlite"):
@@ -114,8 +144,11 @@ def _migrate_sqlite_columns() -> None:
         if _sqlite_table_exists(conn, "audit_checks"):
             _sqlite_add_column_if_missing(conn, "audit_checks", "report_json", "TEXT")
             _sqlite_add_column_if_missing(conn, "audit_checks", "user_id", "INTEGER")
+            _migrate_audit_checks_user_required(conn)
         if _sqlite_table_exists(conn, "users"):
             _migrate_users_names_not_null(conn)
+        if _sqlite_table_exists(conn, "teacher_audit_feedback"):
+            _migrate_teacher_feedback_unique(conn)
 
 
 def init_db() -> None:

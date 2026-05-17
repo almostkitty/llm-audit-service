@@ -9,8 +9,8 @@ services:
     environment:
       JWT_SECRET: "${JWT_SECRET:-dev-secret-min-32-chars-long!!}"
       ENABLE_CATBOOST: "${ENABLE_CATBOOST:-1}"
-      CATBOOST_MODEL_PATH: "${CATBOOST_MODEL_PATH:-/app/ml/catboost_big/catboost_model.cbm}"
+      CATBOOST_MODEL_PATH: "${CATBOOST_MODEL_PATH:-/app/models/catboost/catboost_model.cbm}"
       ENABLE_PERPLEXITY: "${ENABLE_PERPLEXITY:-0}"
     volumes:
-      - ./ml/catboost_big:/app/ml/catboost_big:ro
+      - ./models/catboost:/app/models/catboost:ro
     restart: unless-stopped

@@ -4,6 +4,10 @@
 <style>
   .report-actions-top {
     margin-bottom: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
   }
   .report-score {
     font-size: 2rem;
@@ -77,8 +81,11 @@
 {% set decision = summ.decision %}
 <div class="card report-card">
   <div class="report-actions-top">
-    <button type="button" class="btn-secondary" onclick="if (history.length > 1) { history.back(); } else { location.href = '/'; }">Назад</button>
-    <button type="button" class="btn-secondary" onclick="window.print()">Печать / PDF</button>
+    <button type="button" class="btn btn-secondary" onclick="if (history.length > 1) { history.back(); } else { location.href = '/'; }">Назад</button>
+    <button type="button" class="btn btn-secondary" onclick="window.print()">Печать / PDF</button>
+    {% if report.check.id %}
+    <button type="button" class="btn btn-secondary" id="copyReportLinkBtn">Скопировать ссылку на отчёт</button>
+    {% endif %}
   </div>
 
   <h1>Отчёт проверки текста</h1>
@@ -149,6 +156,19 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+{% if report and report.check.id %}
+<script>
+  (function () {
+    const btn = document.getElementById("copyReportLinkBtn");
+    const checkId = {{ report.check.id | tojson }};
+    if (btn && window.LlmAuditApi && window.LlmAuditApi.copyReportLink) {
+      btn.addEventListener("click", function () {
+        window.LlmAuditApi.copyReportLink(checkId);
+      });
+    }
+  })();
+</script>
+{% endif %}
 {% if report and is_teacher|default(false) and report.check.id %}
 <script src="/static/js/teacher_feedback.js"></script>
 <script>
