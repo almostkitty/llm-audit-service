@@ -17,9 +17,6 @@ from typing import Any, Mapping
 
 import pandas as pd
 
-from app.services.scoring.domain import load_catboost_domain_meta
-
-
 def _project_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
@@ -101,12 +98,7 @@ def predict_llm_probability(metrics: Mapping[str, Any]) -> tuple[float, dict[str
     p = float(proba[1]) if len(proba) > 1 else float(proba[0])
     p = max(0.0, min(1.0, p))
 
-    meta: dict[str, Any] = {
-        "mode": "catboost",
-        "model_path": str(model_path),
-        **load_catboost_domain_meta(model_path),
-    }
-    return p, meta
+    return p, {}
 
 
 def clear_model_cache() -> None:

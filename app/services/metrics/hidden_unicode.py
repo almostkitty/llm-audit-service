@@ -38,10 +38,10 @@ def find_llm_unicode_signals(text: str) -> dict[str, Any]:
             by_label[label] += 1
             by_codepoint_hex[f"U+{cp:04X}"] += 1
 
-    latex_slash_dollar = text.count("\\" + "$")
-    latex_slash_tilde = text.count("\\" + "~")
+    slash_dollar = text.count("\\" + "$")
+    slash_tilde = text.count("\\" + "~")
 
-    char_signal = bool(by_label) or bool(latex_slash_dollar or latex_slash_tilde)
+    char_signal = bool(by_label) or bool(slash_dollar or slash_tilde)
 
     return {
         "has_signals": char_signal,
@@ -53,9 +53,9 @@ def find_llm_unicode_signals(text: str) -> dict[str, Any]:
             },
             "bidirectional_marks": {k: by_label[k] for k in _BIDI_MARKS.values() if k in by_label},
         },
-        "latex_style_escapes": {
-            "backslash_dollar": latex_slash_dollar,
-            "backslash_tilde": latex_slash_tilde,
+        "backslash_escapes": {
+            "backslash_dollar": slash_dollar,
+            "backslash_tilde": slash_tilde,
         },
         "total_flagged_characters": sum(by_label.values()),
     }

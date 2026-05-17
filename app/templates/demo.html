@@ -369,9 +369,8 @@
 
   function renderScoreSummary(data) {
     const m = data.metrics || {};
-    const sc = data.scoring || {};
     const p = data.llm_probability;
-    const mode = sc.mode;
+    const mode = typeof p === "number" ? "catboost" : "unavailable";
 
     if (scoreProbability) {
       if (typeof p === "number") {
@@ -386,11 +385,7 @@
     }
 
     if (scoreModeLine) {
-      let modeText = MODE_LABELS[mode] || (mode ? `Режим: ${mode}` : "—");
-      if (mode === "catboost" && sc.domain_label_ru) {
-        modeText = `Обученная модель CatBoost (${sc.domain_label_ru}).`;
-      }
-      scoreModeLine.textContent = modeText;
+      scoreModeLine.textContent = MODE_LABELS[mode] || "—";
     }
 
     if (scoreUnicodeLine) {
@@ -401,7 +396,7 @@
         scoreUnicodeLine.textContent = "Нет";
       } else {
         const symbols = [];
-        const esc = hu.latex_style_escapes || {};
+        const esc = hu.backslash_escapes || hu.latex_style_escapes || {};
         if (esc.backslash_dollar) symbols.push("\\$");
         if (esc.backslash_tilde) symbols.push("\\~");
         const byLabel = hu.counts_by_label || {};

@@ -112,9 +112,6 @@
     {% else %}
     <p class="report-score report-score--na">P(LLM) не вычислена</p>
     {% endif %}
-    {% if summ.domain_label_ru %}
-    <p class="hint">Модель CatBoost: {{ summ.domain_label_ru }}.</p>
-    {% endif %}
     <p class="report-unicode-line">
       <strong>Скрытые Unicode-признаки:</strong>
       {{ report.hidden_unicode.summary_display or report.hidden_unicode.summary_lines[0] or '—' }}

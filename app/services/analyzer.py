@@ -36,11 +36,10 @@ def analyze_text(text: str) -> dict:
     metrics["unicode"] = 1.0 if hidden_unicode.get("has_signals") else 0.0
 
     # (float | None, dict): без CatBoost score будет None.
-    score, scoring_meta = score_with_meta(metrics)
+    score, _scoring_meta = score_with_meta(metrics)
 
     return {
         "metrics": metrics,
         "llm_probability": score,
-        "scoring": scoring_meta,
         "hidden_unicode": hidden_unicode,
     }

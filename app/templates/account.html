@@ -33,51 +33,53 @@
 
     <section class="page-section">
       <h2>Имя и фамилия</h2>
-      <form id="formProfile" class="auth-form">
-        <p>
-          <label for="firstName">Имя</label><br />
-          <input id="firstName" name="first_name" type="text" maxlength="100" autocomplete="given-name" required />
-        </p>
-        <p>
-          <label for="lastName">Фамилия</label><br />
-          <input id="lastName" name="last_name" type="text" maxlength="100" autocomplete="family-name" required />
-        </p>
-        <p><button type="submit">Сохранить</button></p>
+      <form id="formProfile" class="auth-form form-profile">
+        <div class="form-profile__grid">
+          <div class="form-profile__field">
+            <label for="firstName">Имя</label>
+            <input id="firstName" name="first_name" type="text" maxlength="100" autocomplete="given-name" required />
+          </div>
+          <div class="form-profile__field">
+            <label for="lastName">Фамилия</label>
+            <input id="lastName" name="last_name" type="text" maxlength="100" autocomplete="family-name" required />
+          </div>
+        </div>
+        <p class="form-profile__actions"><button type="submit">Сохранить</button></p>
       </form>
     </section>
 
     <section class="page-section">
       <h2>Сменить email</h2>
-      <form id="formEmail" class="auth-form">
-        <p>
-          <label for="newEmail">Новый email</label><br />
-          <input id="newEmail" name="email" type="email" required autocomplete="email" />
-        </p>
-        <p>
-          <label for="pwdEmail">Текущий пароль</label><br />
-          <input id="pwdEmail" name="current_password" type="password" required autocomplete="current-password" />
-        </p>
-        <p><button type="submit">Сохранить email</button></p>
+      <form id="formEmail" class="auth-form form-profile">
+        <div class="form-profile__grid">
+          <div class="form-profile__field">
+            <label for="newEmail">Новый email</label>
+            <input id="newEmail" name="email" type="email" required autocomplete="email" />
+          </div>
+          <div class="form-profile__field">
+            <label for="pwdEmail">Текущий пароль</label>
+            <input id="pwdEmail" name="current_password" type="password" required autocomplete="current-password" />
+          </div>
+        </div>
+        <p class="form-profile__actions"><button type="submit">Сохранить email</button></p>
       </form>
     </section>
 
     <section class="page-section">
       <h2>Сменить пароль</h2>
-      <form id="formPassword" class="auth-form">
-        <p>
-          <label for="pwdCur">Текущий пароль</label><br />
-          <input id="pwdCur" type="password" required autocomplete="current-password" />
-        </p>
-        <p>
-          <label for="pwdNew">Новый пароль</label>
-          <span class="hint">(не короче 6 символов)</span><br />
-          <input id="pwdNew" type="password" required minlength="6" autocomplete="new-password" />
-        </p>
-        <p>
-          <label for="pwdNew2">Повторите новый пароль</label><br />
-          <input id="pwdNew2" type="password" required minlength="6" autocomplete="new-password" />
-        </p>
-        <p><button type="submit">Сменить пароль</button></p>
+      <p class="hint form-profile__lead">Новый пароль — не короче 6 символов.</p>
+      <form id="formPassword" class="auth-form form-profile">
+        <div class="form-profile__grid">
+          <div class="form-profile__field">
+            <label for="pwdCur">Текущий пароль</label>
+            <input id="pwdCur" type="password" required autocomplete="current-password" />
+          </div>
+          <div class="form-profile__field">
+            <label for="pwdNew">Новый пароль</label>
+            <input id="pwdNew" type="password" required minlength="6" autocomplete="new-password" />
+          </div>
+        </div>
+        <p class="form-profile__actions"><button type="submit">Сменить пароль</button></p>
       </form>
     </section>
 

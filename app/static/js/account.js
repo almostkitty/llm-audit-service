@@ -151,11 +151,6 @@
         clearProfileMessages();
         const cur = document.getElementById("pwdCur").value;
         const n1 = document.getElementById("pwdNew").value;
-        const n2 = document.getElementById("pwdNew2").value;
-        if (n1 !== n2) {
-          showErr("Новые пароли не совпадают.");
-          return;
-        }
         const res = await fetch("/api/auth/me", {
           method: "PATCH",
           headers: authJsonHeaders(),
@@ -170,7 +165,6 @@
         }
         document.getElementById("pwdCur").value = "";
         document.getElementById("pwdNew").value = "";
-        document.getElementById("pwdNew2").value = "";
         showOk("Пароль обновлён.");
       });
     }

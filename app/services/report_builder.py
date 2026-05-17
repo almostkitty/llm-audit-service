@@ -11,8 +11,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping
 
-from app.services.scoring.domain import default_catboost_domain_meta
-
 REPORT_VERSION = 1
 DECISION_THRESHOLD = 0.5
 STRONG_DEVIATION_Z = 2.0
@@ -225,7 +223,7 @@ _UNICODE_SYMBOL_SHORT: dict[str, str] = {
 
 def _hidden_unicode_symbol_list(hidden: Mapping[str, Any]) -> list[str]:
     symbols: list[str] = []
-    esc = hidden.get("latex_style_escapes") or {}
+    esc = hidden.get("backslash_escapes") or hidden.get("latex_style_escapes") or {}
     if int(esc.get("backslash_dollar") or 0) > 0:
         symbols.append(r"\$")
     if int(esc.get("backslash_tilde") or 0) > 0:
@@ -282,7 +280,6 @@ def build_audit_report(
     Полный отчёт: документ, итог, метрики с эталоном, Unicode, служебные поля.
     """
     metrics = dict(audit_result.get("metrics") or {})
-    scoring = dict(audit_result.get("scoring") or {})
     llm_p = audit_result.get("llm_probability")
     if isinstance(llm_p, (int, float)) and not math.isnan(float(llm_p)):
         llm_probability: float | None = float(llm_p)
@@ -290,7 +287,7 @@ def build_audit_report(
         llm_probability = None
 
     baselines_payload = load_metric_baselines()
-    mode = scoring.get("mode")
+    mode = "catboost" if llm_probability is not None else "unavailable"
     checked_iso = _format_checked_at(checked_at)
     report_id = check_id or "draft"
 
@@ -313,12 +310,7 @@ def build_audit_report(
             ),
             "decision": _decision_summary(llm_probability),
             "scoring_mode": mode,
-            "scoring_mode_label": _MODE_LABELS_RU.get(str(mode), str(mode) if mode else "—"),
-            "disclaimer": scoring.get("disclaimer") or "",
-            "model_path": scoring.get("model_path"),
-            "domain": scoring.get("domain"),
-            "domain_label_ru": scoring.get("domain_label_ru"),
-            "domain_description_ru": scoring.get("domain_description_ru"),
+            "scoring_mode_label": _MODE_LABELS_RU.get(mode, mode),
         },
         "metrics": _build_metrics_rows(metrics),
         "hidden_unicode": _hidden_unicode_summary(audit_result.get("hidden_unicode")),
@@ -326,11 +318,6 @@ def build_audit_report(
             "name": "LLM Audit",
             "perplexity_enabled": os.getenv("ENABLE_PERPLEXITY", "0") == "1",
             "catboost_enabled": os.getenv("ENABLE_CATBOOST", "0") == "1",
-            "catboost_domain": {
-                "id": scoring.get("domain"),
-                "label_ru": scoring.get("domain_label_ru"),
-                "description_ru": scoring.get("domain_description_ru"),
-            },
             "baselines": {
                 "version": baselines_payload.get("version"),
                 "generated_at": baselines_payload.get("generated_at"),
@@ -386,26 +373,18 @@ def enrich_report_for_display(report: dict[str, Any]) -> dict[str, Any]:
     if isinstance(hidden, dict):
         raw = hidden.get("details")
         if isinstance(raw, dict) and (
-            "has_signals" in raw or "latex_style_escapes" in raw
+            "has_signals" in raw
+            or "backslash_escapes" in raw
+            or "latex_style_escapes" in raw
         ):
             report["hidden_unicode"] = _hidden_unicode_summary(raw)
 
     summary = report.get("summary")
-    if isinstance(summary, dict) and not summary.get("domain_label_ru"):
-        domain = default_catboost_domain_meta()
-        summary.setdefault("domain", domain["domain"])
-        summary.setdefault("domain_label_ru", domain["domain_label_ru"])
-        summary.setdefault("domain_description_ru", domain["domain_description_ru"])
-    service = report.get("service")
-    if isinstance(service, dict):
-        cb = service.get("catboost_domain")
-        if not isinstance(cb, dict) or not cb.get("label_ru"):
-            domain = default_catboost_domain_meta()
-            service["catboost_domain"] = {
-                "id": domain["domain"],
-                "label_ru": domain["domain_label_ru"],
-                "description_ru": domain["domain_description_ru"],
-            }
+    if isinstance(summary, dict) and summary.get("scoring_mode") is None:
+        llm_p = summary.get("llm_probability")
+        mode = "catboost" if isinstance(llm_p, (int, float)) else "unavailable"
+        summary["scoring_mode"] = mode
+        summary["scoring_mode_label"] = _MODE_LABELS_RU.get(mode, mode)
 
     return report
 
