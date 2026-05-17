@@ -7,7 +7,7 @@
 |--------|------------|
 | `POST /audit` | `multipart/form-data`, поле `file` — **UTF-8 текст**; ответ: `metrics`, `hidden_unicode`, `llm_probability`, `scoring` |
 | `POST /extract` | Загрузка `.pdf`, `.docx`, `.rtf`, `.odt` или текстового файла; ответ `{"text": "..."}` |
-| `GET /demo`, `GET /extract`, `GET /info` | HTML-интерфейсы |
+| `GET /demo`, `GET /history`, `GET /info`, `GET /report/{id}` | HTML-интерфейсы |
 | `GET /login`, `GET /register`, `GET /account` | Страницы входа и профиля |
 | `GET /api/reports`, `GET /api/reports/{id}` | Список отчётов (`demo`, опционально `last` после вызова `/audit`) |
 | `POST /api/auth/register`, `POST /api/auth/login`, … | Регистрация и JWT (см. `/docs`) |
@@ -23,7 +23,7 @@
 app/
   main.py                 # маршруты страниц, mount /static
   api/routes/             # audit, extract, auth, reports
-  templates/              # demo, extract, info, login, register, account
+  templates/              # demo, history, report, info, login, register, account
   services/
     analyzer.py           # метрики + скоринг
     preprocessing/cleaner.py

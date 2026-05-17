@@ -1,9 +1,10 @@
 """
-Перплексия по произвольной causal LM из HuggingFace
-- ai-forever/rugpt3*_based_on_gpt2 — это **то же семейство decoder-only GPT-2**, дообученное
-  на русском; для русскоязычных ВКР это естественный базовый выбор.
-- ai-forever/mGPT — открытая мультиязычная модель в духе GPT-3 scale (~1.3B), хорошо понимает
-  русский; тяжелее по памяти и времени
+Перплексия по произвольной causal LM из HuggingFace.
+
+По умолчанию в проекте: **ai-forever/mGPT** (~1.3B, хорошо по-русски; тяжелее по памяти и времени).
+
+Легче для CPU/Colab без GPU: ``PERPLEXITY_MODEL_NAME=ai-forever/rugpt3small_based_on_gpt2``
+(семейство ruGPT3 на GPT-2, дообучено на русском).
 """
 
 import math
@@ -11,7 +12,7 @@ import os
 from functools import lru_cache
 
 
-DEFAULT_MODEL_NAME = "ai-forever/rugpt3small_based_on_gpt2"
+DEFAULT_MODEL_NAME = "ai-forever/mGPT"
 
 
 def _dtype_env_key() -> str:

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}История проверок — LLM Audit{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>История проверок</h1>
+  <div class="history-toolbar">
+    <span id="historyCount" class="hint"></span>
+  </div>
+  <p id="auditHistoryErr" class="form-error" hidden></p>
+  <p id="auditHistoryEmpty" class="hint" hidden>Пока нет записей. Выполните проверку на странице детектора.</p>
+  <div class="history-scroll">
+    <table id="auditHistoryTable" class="data-table data-table--sticky-head" hidden>
+      <thead>
+        <tr>
+          <th>Время UTC</th>
+          <th>Файл</th>
+          <th>Результат</th>
+          <th>Отчёт</th>
+        </tr>
+      </thead>
+      <tbody id="auditHistoryBody"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/history.js"></script>
+{% endblock %}

@@ -1,14 +1,22 @@
-{# active_page: demo | extract | info | account | login | register #}
+{# active_page: demo | history | info | account | login | register | report (ничего не подсвечивается) #}
 <nav class="site-nav" aria-label="Основное меню">
-  <a href="/demo" {% if active_page == 'demo' %}aria-current="page"{% endif %}>Детектор LLM</a>
-  <span class="sep" aria-hidden="true">|</span>
-  <a href="/extract" {% if active_page == 'extract' %}aria-current="page"{% endif %}>Извлечение текста</a>
-  <span class="sep" aria-hidden="true">|</span>
-  <a href="/info" {% if active_page == 'info' %}aria-current="page"{% endif %}>Информация</a>
-  <span class="sep" aria-hidden="true">|</span>
-  <a href="/account" {% if active_page == 'account' %}aria-current="page"{% endif %}>Аккаунт</a>
-  <span class="sep" aria-hidden="true">|</span>
-  <a href="/login" {% if active_page == 'login' %}aria-current="page"{% endif %}>Вход</a>
-  <span class="sep" aria-hidden="true">|</span>
-  <a href="/register" {% if active_page == 'register' %}aria-current="page"{% endif %}>Регистрация</a>
+  <div class="site-nav__links">
+    <a href="/" data-nav="demo" {% if active_page == 'demo' %}aria-current="page"{% endif %}>Детектор</a>
+    <span class="sep" aria-hidden="true">|</span>
+    <a href="/history" data-nav="history" {% if active_page == 'history' %}aria-current="page"{% endif %}>История</a>
+    <span class="sep" aria-hidden="true">|</span>
+    <a href="/info" data-nav="info" {% if active_page == 'info' %}aria-current="page"{% endif %}>Информация</a>
+  </div>
+  <div class="site-nav__session" id="siteNavSession">
+    <span id="navAuthGuest" class="site-nav__guest">
+      <a href="/login" data-nav="login" {% if active_page == 'login' %}aria-current="page"{% endif %}>Вход</a>
+      <span class="sep" aria-hidden="true">|</span>
+      <a href="/register" data-nav="register" {% if active_page == 'register' %}aria-current="page"{% endif %}>Регистрация</a>
+    </span>
+    <span id="navAuthUser" class="site-nav__user" hidden>
+      <a href="/account" data-nav="account" id="navAccountLink" {% if active_page == 'account' %}aria-current="page"{% endif %}>Аккаунт</a>
+      <span class="sep" aria-hidden="true">|</span>
+      <button type="button" class="btn-secondary btn-sm" id="navLogoutBtn">Выйти</button>
+    </span>
+  </div>
 </nav>

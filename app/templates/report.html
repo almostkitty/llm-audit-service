@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}{% if report %}Отчёт — {{ report.document.filename }}{% else %}Отчёт не найден{% endif %} — LLM Audit{% endblock %}
+{% block head_extra %}
+<style>
+  .report-actions-top {
+    margin-bottom: 1rem;
+  }
+  .report-score {
+    font-size: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    margin: 0.25rem 0;
+  }
+  .report-score--llm { color: #b91c1c; }
+  .report-score--human { color: #15803d; }
+  .report-score--na { color: var(--muted); }
+  .report-section.page-section { margin-top: 1.5rem; }
+  .report-unicode-line { margin: 0.5rem 0 0; }
+  .report-doc-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin: 0.75rem 0 0;
+    max-width: 32rem;
+  }
+  .report-doc-meta > div {
+    display: grid;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    column-gap: 1rem;
+    align-items: baseline;
+  }
+  .report-doc-meta dt {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .report-doc-meta dd {
+    margin: 0;
+    font-size: 0.92rem;
+    word-break: break-word;
+  }
+  .report-doc-meta .num {
+    font-variant-numeric: tabular-nums;
+  }
+  .data-table tr.metric-row--outlier {
+    background: rgba(180, 83, 9, 0.1);
+  }
+  .data-table tr.metric-row--outlier td:first-child {
+    font-weight: 600;
+  }
+  @media print {
+    .teacher-feedback { display: none; }
+    .site-header, .report-actions-top, .site-footer { display: none !important; }
+    body { background: #fff; }
+    .card { box-shadow: none; border: none; padding: 0; }
+    .data-table tr.metric-row--outlier { background: #f3f4f6; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+{% if error %}
+<div class="card">
+  <h1>{% if login_required %}Требуется вход{% else %}Отчёт не найден{% endif %}</h1>
+  <p>{{ error }}</p>
+  <p>
+    {% if login_required %}
+    <a href="/login">Войти</a> · <a href="/register">Регистрация</a>
+    {% else %}
+    <a href="/">Вернуться к детектору</a>
+    {% endif %}
+  </p>
+</div>
+{% else %}
+{% set doc = report.document %}
+{% set summ = report.summary %}
+{% set decision = summ.decision %}
+<div class="card report-card">
+  <div class="report-actions-top">
+    <button type="button" class="btn-secondary" onclick="if (history.length > 1) { history.back(); } else { location.href = '/'; }">Назад</button>
+    <button type="button" class="btn-secondary" onclick="window.print()">Печать / PDF</button>
+  </div>
+
+  <h1>Отчёт проверки текста</h1>
+
+  <section class="report-section page-section">
+    <h2>Документ</h2>
+    <dl class="report-doc-meta">
+      <div><dt>Файл</dt><dd>{{ doc.filename }}</dd></div>
+      <div><dt>Символов</dt><dd class="num">{{ doc.char_count_display or doc.char_count }}</dd></div>
+      <div><dt>Слов</dt><dd class="num">{{ doc.word_count }}</dd></div>
+      {% if report.check.id %}
+      <div><dt>ID проверки</dt><dd style="font-family:ui-monospace,monospace;font-size:0.85rem;">{{ report.check.id }}</dd></div>
+      <div><dt>Время проверки</dt><dd class="num">{{ report.check.checked_at[:19].replace("T", " ") }} UTC</dd></div>
+      {% endif %}
+    </dl>
+  </section>
+
+  <section class="report-section page-section">
+    <h2>Результат проверки</h2>
+    {% if summ.llm_probability is not none %}
+    <p class="report-score {% if decision.class_hint == 'llm' %}report-score--llm{% elif decision.class_hint == 'human' %}report-score--human{% endif %}">
+      P(LLM) = {{ summ.llm_probability_formatted }}
+    </p>
+    {% else %}
+    <p class="report-score report-score--na">P(LLM) не вычислена</p>
+    {% endif %}
+    {% if summ.domain_label_ru %}
+    <p class="hint">Модель CatBoost: {{ summ.domain_label_ru }}.</p>
+    {% endif %}
+    <p class="report-unicode-line">
+      <strong>Скрытые Unicode-признаки:</strong>
+      {{ report.hidden_unicode.summary_display or report.hidden_unicode.summary_lines[0] or '—' }}
+    </p>
+  </section>
+
+  <section class="report-section page-section">
+    <h2>Метрики текста</h2>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Метрика</th>
+            <th>Текст</th>
+            <th>Обычно</th>
+            <th>Сравнение</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in report.metrics %}
+          <tr{% if m.strong_deviation %} class="metric-row--outlier"{% endif %}>
+            <td>{{ m.label_ru }}</td>
+            <td class="num">{{ m.value_formatted }}</td>
+            <td class="num">{% if m.baseline_typical %}{{ m.baseline_typical }}{% else %}—{% endif %}</td>
+            <td>{{ m.deviation_note }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if is_teacher|default(false) and report.check.id %}
+  {% set heading_tag = 'h2' %}
+  {% include "_teacher_feedback.html" %}
+  {% endif %}
+
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if report and is_teacher|default(false) and report.check.id %}
+<script src="/static/js/teacher_feedback.js"></script>
+<script>
+  window.LlmAuditTeacherFeedback.init({
+    checkId: {{ report.check.id | tojson }},
+    alwaysVisible: true,
+    initialFeedback: {{ teacher_feedback | tojson }},
+    reloadOnRefresh: false,
+  });
+</script>
+{% endif %}
+{% endblock %}

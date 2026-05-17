@@ -1,56 +1,83 @@
 {% extends "base.html" %}
 {% block title %}Регистрация — LLM Audit{% endblock %}
 {% block content %}
-<div class="card">
+<div class="auth-page">
+<div class="card card--auth">
   <h1>Регистрация</h1>
-  <p class="hint">Уже есть аккаунт? <a href="/login">Вход</a></p>
-  <form id="registerForm" class="auth-form">
-    <p>
-      <label for="email">Email</label><br />
-      <input id="email" name="email" type="email" autocomplete="email" required />
-    </p>
-    <p>
-      <label for="password">Пароль</label> <span class="hint">(не короче 6 символов)</span><br />
-      <input id="password" name="password" type="password" autocomplete="new-password" required minlength="6" />
-    </p>
-    <p>
-      <label for="role">Роль:</label><br />
-      <label><input type="radio" name="role" value="student" checked />Студент</label>
-      <label><input type="radio" name="role" value="teacher" />Преподаватель</label>
-    </p>
-    <p><button type="submit" class="btn-primary-wide">Зарегистрироваться</button></p>
+  <p class="hint auth-card-lead">Уже есть аккаунт? <a href="/login">Вход</a></p>
+
+  <form id="registerForm" class="auth-form auth-form--stacked">
+    <div class="auth-field">
+      <label class="visually-hidden" for="firstName">Имя</label>
+      <input id="firstName" name="first_name" type="text" maxlength="100" autocomplete="given-name" placeholder="Имя" required />
+    </div>
+    <div class="auth-field">
+      <label class="visually-hidden" for="lastName">Фамилия</label>
+      <input id="lastName" name="last_name" type="text" maxlength="100" autocomplete="family-name" placeholder="Фамилия" required />
+    </div>
+    <div class="auth-field">
+      <label class="visually-hidden" for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="email" placeholder="Email" required />
+    </div>
+    <div class="auth-field">
+      <label class="visually-hidden" for="password">Пароль</label>
+      <div class="auth-password-wrap">
+        <input id="password" name="password" type="password" autocomplete="new-password" placeholder="Пароль" required minlength="6" />
+        <button type="button" class="auth-password-toggle" aria-label="Показать пароль" aria-pressed="false"></button>
+      </div>
+    </div>
+    <div class="auth-field">
+      <label class="visually-hidden" for="passwordConfirm">Повторите пароль</label>
+      <div class="auth-password-wrap">
+        <input id="passwordConfirm" name="password_confirm" type="password" autocomplete="new-password" placeholder="Повторите пароль" required minlength="6" />
+        <button type="button" class="auth-password-toggle" aria-label="Показать пароль" aria-pressed="false"></button>
+      </div>
+    </div>
+    <fieldset class="auth-field">
+      <legend class="field-label">Роль</legend>
+      <div class="auth-role-options">
+        <label class="auth-role-option">
+          <input type="radio" name="role" value="student" checked />
+          <span>Студент</span>
+        </label>
+        <label class="auth-role-option">
+          <input type="radio" name="role" value="teacher" />
+          <span>Преподаватель</span>
+        </label>
+      </div>
+    </fieldset>
+    <div class="auth-form__actions">
+      <button type="submit" class="btn-wide">Зарегистрироваться</button>
+    </div>
   </form>
-  <p id="authError" class="hint" style="color: #b91c1c;"></p>
+
+  <p id="authError" class="form-error" role="alert"></p>
+</div>
 </div>
 {% endblock %}
 {% block scripts %}
+<script src="/static/js/auth_pages.js"></script>
 <script>
-  document.getElementById("registerForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const err = document.getElementById("authError");
-    err.textContent = "";
-    const fd = new FormData(e.target);
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+  LlmAuditAuthPages.initPasswordToggles(document.getElementById("registerForm"));
+  LlmAuditAuthPages.bindAuthSubmit("registerForm", {
+    url: "/api/auth/register",
+    validate: function (fd) {
+      if (fd.get("password") !== fd.get("password_confirm")) {
+        return "Пароли не совпадают";
+      }
+      return null;
+    },
+    buildBody: function (fd) {
+      return {
         email: fd.get("email"),
         password: fd.get("password"),
+        password_confirm: fd.get("password_confirm"),
         role: fd.get("role") || "student",
-      }),
-    });
-    if (!res.ok) {
-      try {
-        const j = await res.json();
-        err.textContent = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail);
-      } catch {
-        err.textContent = "Ошибка сервера";
-      }
-      return;
-    }
-    const data = await res.json();
-    localStorage.setItem("access_token", data.access_token);
-    window.location.href = "/demo";
+        first_name: fd.get("first_name"),
+        last_name: fd.get("last_name"),
+      };
+    },
+    errorFallback: "Ошибка регистрации",
   });
 </script>
 {% endblock %}

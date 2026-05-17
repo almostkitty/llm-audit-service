@@ -11,6 +11,8 @@ from app.api.deps import get_current_user
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.models import User
 from app.db.session import get_session
+from app.services.audit_history import delete_checks_for_user
+from app.services.teacher_feedback import delete_feedback_for_teacher
 from app.schemas.auth import (
     DeleteAccountRequest,
     TokenResponse,
@@ -31,6 +33,8 @@ def register(body: UserRegister, session: Annotated[Session, Depends(get_session
 
     user = User(
         email=body.email.lower().strip(),
+        first_name=body.first_name,
+        last_name=body.last_name,
         password_hash=hash_password(body.password),
         role=body.role,
     )
@@ -68,16 +72,23 @@ def update_me(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
 ) -> User:
-    if not verify_password(body.current_password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный текущий пароль",
-        )
-    if body.email is None and body.new_password is None:
+    if body.email is not None or body.new_password is not None:
+        if not body.current_password or not verify_password(body.current_password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Неверный текущий пароль",
+            )
+    updates = body.model_dump(exclude_unset=True)
+    updates.pop("current_password", None)
+    if not updates:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Укажите новый email или новый пароль",
+            detail="Нет данных для обновления",
         )
+    if "first_name" in updates:
+        user.first_name = body.first_name
+    if "last_name" in updates:
+        user.last_name = body.last_name
     if body.email is not None:
         new_email = body.email.lower().strip()
         if new_email != user.email:
@@ -107,6 +118,9 @@ def delete_me(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Неверный пароль",
         )
+    assert user.id is not None
+    delete_checks_for_user(session, user.id)
+    delete_feedback_for_teacher(session, user.id)
     session.delete(user)
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

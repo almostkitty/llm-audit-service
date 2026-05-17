@@ -29,6 +29,18 @@
     line-height: 1.2;
   }
   .score-summary__value.is-muted { color: var(--muted); font-size: 1rem; font-weight: 500; }
+  /* Порог по умолчанию CatBoost для класса LLM: P(LLM) ≥ 0.5 */
+  .score-summary__value.score-summary__value--ll-low {
+    color: #15803d;
+  }
+  .score-summary__value.score-summary__value--ll-high {
+    color: #b91c1c;
+  }
+  .score-summary__threshold-note {
+    margin: 0.35rem 0 0;
+    font-size: 0.82rem;
+    max-width: 26rem;
+  }
   .score-summary__dl {
     margin: 0;
     flex: 1;
@@ -62,6 +74,10 @@
   }
   .report-actions {
     margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
   }
   .api-json-details summary {
     cursor: pointer;
@@ -72,11 +88,9 @@
   }
   .api-json-details summary:hover { color: var(--text); }
   .api-json-details pre { margin-top: 0; }
-  .metric-viz-section { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-  .metric-viz-section h3 { margin-top: 0; }
   .metric-viz-panel {
     margin: 0;
-    border-radius: 10px;
+    border-radius: var(--radius-card);
     padding: 0.75rem;
     border: 1px solid var(--border);
     background: var(--surface);
@@ -92,7 +106,7 @@
   }
   .metric-viz-cell {
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     padding: 0.45rem 0.55rem 0.5rem;
     background: var(--surface);
   }
@@ -108,39 +122,62 @@
     height: auto;
     display: block;
   }
-  .metric-viz-err {
-    font-size: 0.88rem;
-    color: #b91c1c;
+  .demo-audit-form {
+    margin-top: 0.75rem;
+  }
+  .demo-audit-form__textarea-wrap {
+    min-height: 14rem;
+    margin-bottom: 0.65rem;
+  }
+  .demo-audit-form__textarea-wrap textarea {
+    width: 100%;
+    min-height: 14rem;
+    margin: 0;
+  }
+  .demo-audit-form__status {
+    margin: 0.5rem 0 0;
+  }
+  .demo-audit-form__formats {
     margin: 0.35rem 0 0;
+    font-size: 0.82rem;
   }
 </style>
 {% endblock %}
 {% block content %}
 <div class="card">
-  <h1>Детектор LLM</h1>
-  <div class="demo-warning" role="note">
+  <h1>Детектор использования LLM</h1>
+  <div class="alert alert--warning" role="note">
     <strong>Предупреждение</strong>
     <p class="hint">
       Результат анализа не является доказательством происхождения текста и не гарантирует, что фрагмент написан человеком или языковой моделью.
     </p>
   </div>
-  <div class="input-panel">
-    <label class="input-panel__label-t" for="inputText">Текст для анализа</label>
-    <span class="input-panel__label-d">Документ</span>
-    <div class="input-panel__textarea-wrap">
-      <textarea id="inputText" rows="12" placeholder="Вставьте текст из буфера или выберите файл справа"></textarea>
+  <div class="demo-audit-form">
+    <label class="field-label demo-audit-form__label" for="inputText">Текст для анализа</label>
+    <div class="demo-audit-form__textarea-wrap">
+      <textarea
+        id="inputText"
+        rows="12"
+        placeholder="Вставьте текст или загрузите файл"
+      ></textarea>
     </div>
-    <aside class="input-panel__aside" aria-label="Загрузка файла">
-      <p class="hint">
-        Поддерживаются форматы PDF, DOCX, RTF, ODT, TXT.
-      </p>
-      <input type="file" id="fileInput" accept=".pdf,.docx,.rtf,.odt,.txt,text/plain" />
-      <p id="fileStatus" class="hint" aria-live="polite"></p>
-    </aside>
+    <input
+      type="file"
+      id="fileInput"
+      class="visually-hidden"
+      accept=".pdf,.docx,.rtf,.odt,.txt,text/plain"
+      tabindex="-1"
+    />
+    <div class="demo-audit-form__toolbar" role="group" aria-label="Действия с текстом">
+      <button id="pickFileBtn" type="button" class="btn btn-secondary">Выбрать файл</button>
+      <button id="thesisCleanBtn" type="button" class="btn btn-secondary">Автоочистка текста</button>
+      <button id="analyzeBtn" type="button" class="btn btn-wide">Посчитать метрики</button>
+    </div>
+    <p class="hint demo-audit-form__formats">
+      Поддерживаются форматы PDF, DOCX, RTF, ODT, TXT.
+    </p>
+    <p id="fileStatus" class="hint demo-audit-form__status" aria-live="polite"></p>
   </div>
-  <p class="input-panel__action">
-    <button id="analyzeBtn" type="button" class="btn-primary-wide">Посчитать метрики</button>
-  </p>
 </div>
 
 <div class="card">
@@ -159,37 +196,37 @@
           <dd id="scoreModeLine">—</dd>
         </div>
         <div class="score-summary__row">
-          <dt>Перплексия</dt>
-          <dd id="scorePerplexityLine">—</dd>
-        </div>
-        <div class="score-summary__row">
           <dt>Unicode-сигналы</dt>
           <dd id="scoreUnicodeLine">—</dd>
         </div>
       </dl>
     </div>
-    <p id="scoreDisclaimer" class="hint"></p>
   </section>
 
-  <section id="metricVizSection" class="metric-viz-section" hidden>
+  <section id="metricVizSection" class="page-section" hidden>
     <h3>Сравнение с эталоном</h3>
     <div class="metric-viz-panel">
       <div id="metricVizGrid" class="metric-viz-grid" aria-live="polite"></div>
     </div>
-    <p id="metricChartErr" class="metric-viz-err" hidden></p>
+    <p id="metricChartErr" class="form-error" hidden></p>
   </section>
+
+  {% set heading_tag = 'h3' %}
+  {% include "_teacher_feedback.html" %}
 
   <details class="api-json-details">
     <summary>Полный ответ API (JSON)</summary>
     <pre id="result">Пока нет данных</pre>
   </details>
   <p class="report-actions">
-    <button id="loadLastReportBtn" type="button" class="btn-secondary">Показать последний отчёт</button>
+    <a id="openReportBtn" href="/report/last" class="btn btn-secondary" hidden>Открыть отчёт</a>
+    <a href="/history" class="btn btn-secondary">История проверок</a>
   </p>
 </div>
 {% endblock %}
 {% block scripts %}
 <script src="/static/js/metric_charts_svg.js"></script>
+<script src="/static/js/teacher_feedback.js"></script>
 <script>
   const MODE_LABELS = {
     catboost: "Обученная модель CatBoost.",
@@ -197,20 +234,50 @@
   };
 
   const analyzeBtn = document.getElementById("analyzeBtn");
-  const loadLastReportBtn = document.getElementById("loadLastReportBtn");
+  const pickFileBtn = document.getElementById("pickFileBtn");
+  const openReportBtn = document.getElementById("openReportBtn");
+  let lastReportId = null;
+  let currentUserRole = null;
+  let teacherFeedbackCtl = null;
   const fileInput = document.getElementById("fileInput");
   const fileStatus = document.getElementById("fileStatus");
   const textarea = document.getElementById("inputText");
   const result = document.getElementById("result");
   const scoreProbability = document.getElementById("scoreProbability");
   const scoreModeLine = document.getElementById("scoreModeLine");
-  const scorePerplexityLine = document.getElementById("scorePerplexityLine");
+
+  /** Стандартная граница бинарного решения CatBoost: класс LLM при P(LLM) ≥ threshold */
+  const CATBOOST_LL_DECISION_THRESHOLD = 0.5;
+  const SCORE_LL_COLOR_CLASSES = ["score-summary__value--ll-low", "score-summary__value--ll-high"];
+
+  function clearScoreLlThresholdClasses() {
+    if (!scoreProbability) return;
+    SCORE_LL_COLOR_CLASSES.forEach((c) => scoreProbability.classList.remove(c));
+  }
+
+  function applyScoreLlThresholdStyle(p) {
+    clearScoreLlThresholdClasses();
+    const note = document.getElementById("scoreProbabilityThresholdNote");
+    if (typeof p !== "number" || Number.isNaN(p)) {
+      if (note) note.hidden = true;
+      return;
+    }
+    if (note) note.hidden = false;
+    if (p < CATBOOST_LL_DECISION_THRESHOLD) {
+      scoreProbability.classList.add("score-summary__value--ll-low");
+    } else {
+      scoreProbability.classList.add("score-summary__value--ll-high");
+    }
+  }
+
   const scoreUnicodeLine = document.getElementById("scoreUnicodeLine");
-  const scoreDisclaimer = document.getElementById("scoreDisclaimer");
   const metricVizSection = document.getElementById("metricVizSection");
   const metricVizGrid = document.getElementById("metricVizGrid");
   const metricChartErr = document.getElementById("metricChartErr");
+  const thesisCleanBtn = document.getElementById("thesisCleanBtn");
   let baselinesPayloadPromise = null;
+  let lastAuditFilename = "вставленный_текст.txt";
+  let lastCharsBefore = null;
 
   function resetMetricChartError() {
     if (!metricChartErr) return;
@@ -255,14 +322,38 @@
     }
   }
 
+  async function loadCurrentUser() {
+    currentUserRole = null;
+    if (!window.LlmAuditAuth.isLoggedIn()) {
+      if (teacherFeedbackCtl) teacherFeedbackCtl.reset();
+      return;
+    }
+    try {
+      const res = await fetch("/api/auth/me", {
+        headers: window.LlmAuditAuth.authHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        currentUserRole = data.role || null;
+      }
+    } catch (_e) {
+      currentUserRole = null;
+    }
+    if (teacherFeedbackCtl) teacherFeedbackCtl.refresh();
+  }
+
   function setScorePlaceholders(mark) {
-    scoreProbability.textContent = mark;
-    scoreProbability.classList.add("is-muted");
-    scoreModeLine.textContent = mark;
-    scorePerplexityLine.textContent = mark;
-    scoreUnicodeLine.textContent = mark;
-    scoreDisclaimer.textContent = "";
+    if (scoreProbability) {
+      scoreProbability.textContent = mark;
+      scoreProbability.classList.add("is-muted");
+    }
+    clearScoreLlThresholdClasses();
+    const note = document.getElementById("scoreProbabilityThresholdNote");
+    if (note) note.hidden = true;
+    if (scoreModeLine) scoreModeLine.textContent = mark;
+    if (scoreUnicodeLine) scoreUnicodeLine.textContent = mark;
     clearMetricCharts();
+    if (teacherFeedbackCtl) teacherFeedbackCtl.reset();
   }
 
   function setScoreLoading() {
@@ -278,50 +369,92 @@
     const sc = data.scoring || {};
     const p = data.llm_probability;
     const mode = sc.mode;
-    const hasPpl = typeof m.perplexity === "number";
 
-    if (typeof p === "number") {
-      scoreProbability.textContent = p.toFixed(4);
-      scoreProbability.classList.remove("is-muted");
-    } else {
-      scoreProbability.textContent = "—";
-      scoreProbability.classList.add("is-muted");
-    }
-
-    const modeText = MODE_LABELS[mode] || (mode ? `Режим: ${mode}` : "—");
-    scoreModeLine.textContent = modeText;
-
-    if (hasPpl) {
-      scorePerplexityLine.innerHTML =
-        `${m.perplexity.toFixed(4)} <span class="score-summary__tech">(считалась и входила в метрики)</span>`;
-    } else {
-      scorePerplexityLine.innerHTML = "Не считалась.";
-    }
-
-    const hu = data.hidden_unicode;
-    if (!hu) {
-      scoreUnicodeLine.textContent = "—";
-    } else {
-      const parts = [];
-      parts.push(hu.has_signals ? "Обнаружены признаки." : "Признаков нет.");
-      if (hu.total_flagged_characters > 0) {
-        parts.push(` Отмечено символов: ${hu.total_flagged_characters}.`);
+    if (scoreProbability) {
+      if (typeof p === "number") {
+        scoreProbability.textContent = p.toFixed(4);
+        scoreProbability.classList.remove("is-muted");
+        applyScoreLlThresholdStyle(p);
+      } else {
+        scoreProbability.textContent = "—";
+        scoreProbability.classList.add("is-muted");
+        applyScoreLlThresholdStyle(null);
       }
-      const esc = hu.latex_style_escapes || {};
-      if (esc.backslash_dollar || esc.backslash_tilde) {
-        parts.push(
-          ` Экранирование (\\$ и \\~): ${esc.backslash_dollar} и ${esc.backslash_tilde}.`
-        );
-      }
-      scoreUnicodeLine.textContent = parts.join("");
     }
 
-    scoreDisclaimer.textContent = sc.disclaimer || "";
+    if (scoreModeLine) {
+      let modeText = MODE_LABELS[mode] || (mode ? `Режим: ${mode}` : "—");
+      if (mode === "catboost" && sc.domain_label_ru) {
+        modeText = `Обученная модель CatBoost (${sc.domain_label_ru}).`;
+      }
+      scoreModeLine.textContent = modeText;
+    }
+
+    if (scoreUnicodeLine) {
+      const hu = data.hidden_unicode;
+      if (!hu) {
+        scoreUnicodeLine.textContent = "—";
+      } else if (!hu.has_signals) {
+        scoreUnicodeLine.textContent = "Нет";
+      } else {
+        const symbols = [];
+        const esc = hu.latex_style_escapes || {};
+        if (esc.backslash_dollar) symbols.push("\\$");
+        if (esc.backslash_tilde) symbols.push("\\~");
+        const byLabel = hu.counts_by_label || {};
+        Object.keys(byLabel)
+          .sort()
+          .forEach((k) => symbols.push(k));
+        scoreUnicodeLine.textContent = symbols.length
+          ? `Да (${symbols.join(", ")})`
+          : "Да";
+      }
+    }
+
   }
+
+  async function applyThesisClean() {
+    const raw = textarea.value;
+    if (!raw.trim()) {
+      fileStatus.textContent = "Сначала вставьте текст или загрузите файл.";
+      return false;
+    }
+    fileStatus.textContent = "Очистка текста…";
+    try {
+      const res = await fetch("/thesis-clean", {
+        method: "POST",
+        headers: { "Content-Type": "application/json;charset=utf-8" },
+        body: JSON.stringify({ text: raw }),
+      });
+      const data = await window.LlmAuditApi.parseJsonOrEmpty(res);
+      if (!res.ok) {
+        const detail =
+          typeof data.detail === "string"
+            ? data.detail
+            : Array.isArray(data.detail)
+              ? data.detail.map((d) => d.msg || d).join("; ")
+              : "Ошибка очистки: " + res.status;
+        fileStatus.textContent = detail;
+        return false;
+      }
+      textarea.value = data.text;
+      lastCharsBefore = data.chars_before;
+      fileStatus.textContent = "";
+      return true;
+    } catch (_e) {
+      fileStatus.textContent = "Ошибка запроса очистки.";
+      return false;
+    }
+  }
+
+  pickFileBtn.addEventListener("click", () => fileInput.click());
+
+  thesisCleanBtn.addEventListener("click", () => applyThesisClean());
 
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files[0];
     fileStatus.textContent = "";
+    lastCharsBefore = null;
     if (!file) return;
 
     fileStatus.textContent = "Извлекаем текст из файла…";
@@ -329,7 +462,7 @@
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch("/extract", { method: "POST", body: formData });
-      const data = await parseJsonOrEmpty(res);
+      const data = await window.LlmAuditApi.parseJsonOrEmpty(res);
       if (!res.ok) {
         fileStatus.textContent = data.detail || "Ошибка извлечения: " + res.status;
         return;
@@ -340,9 +473,9 @@
         return;
       }
       textarea.value = t;
-      fileStatus.textContent =
-        "Готово: " + t.length.toLocaleString("ru-RU") + " символов. При необходимости отредактируйте.";
-   
+      lastCharsBefore = t.length;
+      lastAuditFilename = file.name || "document.txt";
+      fileStatus.textContent = "";
     } catch (e) {
       fileStatus.textContent = "Ошибка запроса к серверу.";
     }
@@ -350,38 +483,27 @@
 
   function makeTextFormData(text) {
     const formData = new FormData();
-    const file = new File([text], "input.txt", { type: "text/plain" });
+    const file = new File([text], lastAuditFilename || "input.txt", { type: "text/plain" });
     formData.append("file", file);
+    const before =
+      lastCharsBefore != null && Number.isFinite(lastCharsBefore)
+        ? Math.max(0, Math.floor(lastCharsBefore))
+        : text.length;
+    if (before > text.length) {
+      formData.append("chars_before", String(before));
+    }
     return formData;
-  }
-
-  async function parseJsonOrEmpty(res) {
-    return res.json().catch(() => ({}));
   }
 
   function setResultText(text) {
     result.textContent = text;
   }
 
-  function downloadJson(filename, data) {
-    const pretty = JSON.stringify(data, null, 2);
-    const blob = new Blob([pretty], { type: "application/json;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    return pretty;
-  }
-
   async function runAudit() {
     const text = textarea.value.trim();
 
     if (!text) {
-      setResultText("Введите текст или выберите файл выше.");
+      setResultText("Введите текст или загрузите файл кнопкой «Выбрать файл».");
       setScoreEmpty();
       return;
     }
@@ -389,14 +511,26 @@
     setResultText("Считаем...");
     setScoreLoading();
 
+    if (!window.LlmAuditAuth.isLoggedIn()) {
+      setResultText("Для проверки с сохранением отчёта войдите в аккаунт.");
+      setScoreEmpty();
+      return;
+    }
+
     try {
       const response = await fetch("/audit", {
         method: "POST",
+        headers: window.LlmAuditAuth.authHeaders(),
         body: makeTextFormData(text),
       });
 
       if (!response.ok) {
-        setResultText(`Ошибка: ${response.status}`);
+        const errBody = await window.LlmAuditApi.parseJsonOrEmpty(response);
+        const msg =
+          response.status === 401
+            ? "Требуется вход. Перейдите на страницу входа."
+            : errBody.detail || `Ошибка: ${response.status}`;
+        setResultText(msg);
         setScoreEmpty();
         return;
       }
@@ -404,29 +538,33 @@
       const data = await response.json();
       setResultText(JSON.stringify(data, null, 2));
 
+      lastReportId = data.report_id || data.check_id || null;
+      if (openReportBtn) {
+        if (lastReportId) {
+          openReportBtn.href = "/report/" + encodeURIComponent(lastReportId);
+          openReportBtn.hidden = false;
+        } else {
+          openReportBtn.hidden = true;
+        }
+      }
       renderScoreSummary(data);
       renderMetricCharts(data);
+      if (teacherFeedbackCtl) teacherFeedbackCtl.refresh();
     } catch (error) {
       setResultText("Ошибка запроса к API.");
       setScoreEmpty();
     }
   }
 
-  analyzeBtn.addEventListener("click", () => runAudit());
-
-  loadLastReportBtn.addEventListener("click", async () => {
-    setResultText("Готовим файл отчёта...");
-    try {
-      const response = await fetch("/api/reports/last");
-      const data = await parseJsonOrEmpty(response);
-      if (!response.ok) {
-        setResultText(data.detail || `Ошибка: ${response.status}`);
-        return;
-      }
-      setResultText(downloadJson("report-last.json", data));
-    } catch (_error) {
-      setResultText("Ошибка запроса к API.");
-    }
+  teacherFeedbackCtl = window.LlmAuditTeacherFeedback.init({
+    getCheckId: function () { return lastReportId; },
+    canShow: function () {
+      return currentUserRole === "teacher" && window.LlmAuditAuth.isLoggedIn();
+    },
   });
+
+  loadCurrentUser();
+
+  analyzeBtn.addEventListener("click", () => runAudit());
 </script>
 {% endblock %}

@@ -1,0 +1,16 @@
+{# heading_tag: "h2" | "h3" (по умолчанию h3) #}
+{% set _heading = heading_tag|default("h3") %}
+<section id="teacherFeedbackSection" class="teacher-feedback panel page-section" hidden>
+  {% if _heading == "h2" %}
+  <h2>Оценка преподавателя</h2>
+  {% else %}
+  <h3>Оценка преподавателя</h3>
+  {% endif %}
+  <p class="hint">Согласны ли вы с результатом автоматической проверки{% if _heading == "h2" %} по этому файлу{% endif %}?</p>
+  <div class="teacher-feedback__actions">
+    <button type="button" class="btn-secondary" id="teacherAgreeBtn">Согласен</button>
+    <button type="button" class="btn-secondary" id="teacherDisagreeBtn">Не согласен</button>
+  </div>
+  <p id="teacherFeedbackStatus" class="teacher-feedback__status" hidden></p>
+  <p id="teacherFeedbackErr" class="form-error" hidden></p>
+</section>

@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from app.services.scoring.catboost_runtime import predict_llm_probability
+from app.services.scoring.domain import default_catboost_domain_meta
 
 _DISCLAIMER = (
     "Число llm_probability — не вердикт о происхождении текста: результат нужно "
@@ -28,11 +29,16 @@ def score_with_meta(metrics: Mapping[str, float]) -> tuple[float | None, dict[st
     Возвращает ``(p, meta)``. ``p`` — вероятность класса LLM в ``[0, 1]`` или ``None``,
     если CatBoost недоступен.
     """
+    domain = default_catboost_domain_meta()
     cat = predict_llm_probability(metrics)
     if cat is not None:
         p, meta = cat
-        return p, {**meta, "disclaimer": _DISCLAIMER}
-    return None, {"mode": "unavailable", "disclaimer": _UNAVAILABLE_DISCLAIMER}
+        return p, {**domain, **meta, "disclaimer": _DISCLAIMER}
+    return None, {
+        **domain,
+        "mode": "unavailable",
+        "disclaimer": _UNAVAILABLE_DISCLAIMER,
+    }
 
 
 def compute_score(metrics: Mapping[str, float]) -> float | None:
